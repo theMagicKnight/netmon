@@ -1,0 +1,6 @@
+# Zugangsdaten – nie ins Repo
+netmon/config.php
+# lokale Sicherungen / Analyse-Pakete
+*.sql.bak
+netmon-analyse-*.txt
+netmon-backup-*.sql
