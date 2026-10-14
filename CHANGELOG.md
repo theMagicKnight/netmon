@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 – 2026-10-14
+
+- install.sh: Update nutzt den Datenbank-Zugang aus config.php; MariaDB-root (ggf. mit Passwortabfrage)
+  wird nur noch zum Anlegen einer neuen Datenbank gebraucht
+
 ## 1.1.0 – 2026-10-14
 
 - Port-LEDs der Switches schalten: zeitgesteuert unter Einstellungen → Switch-LEDs (z. B. 22:00 aus, 06:30 an)

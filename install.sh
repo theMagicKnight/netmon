@@ -124,25 +124,48 @@ chmod 640 "$WEB/config.php"
 
 # ---------------------------------------------------------------
 say "Datenbank"
-if "$SQL" -e "USE \`$DB\`" 2>/dev/null; then
-  [[ $NEW_CONFIG -eq 0 ]] || die "Datenbank '$DB' existiert schon, aber es gab keine config.php. Passwort bitte selbst in $WEB/config.php eintragen."
-  echo "Datenbank '$DB' vorhanden, Daten bleiben erhalten"
-  "$SQL" "$DB" < sql/migrate-v2.sql
-  echo "Datenbank auf Version 2 gebracht (Benutzer, Einstellungen, Gerätetypen)"
+# Zugang aus config.php (Update) – root wird nur zum Anlegen einer neuen Datenbank gebraucht
+cfg() { php -r '$c = require $argv[1]; $d = $c["db"];
+  $v = ["dsn_db" => preg_match("/dbname=([^;]+)/", $d["dsn"], $m) ? $m[1] : "", "dsn_host" => preg_match("/host=([^;]+)/", $d["dsn"], $m) ? $m[1] : "localhost",
+        "user" => $d["user"], "pass" => $d["pass"]]; echo $v[$argv[2]];' "$WEB/config.php" "$1"; }
+CFG_DB=$(cfg dsn_db); CFG_HOST=$(cfg dsn_host); CFG_USER=$(cfg user); CFG_PASS=$(cfg pass)
+[[ -n "$CFG_DB" ]] && DB="$CFG_DB"
+app_sql() { MYSQL_PWD="$CFG_PASS" "$SQL" -h "$CFG_HOST" -u "$CFG_USER" "$@"; }
+ROOT_PW=""
+root_sql() { if [[ -n "$ROOT_PW" ]]; then MYSQL_PWD="$ROOT_PW" "$SQL" -u root "$@"; else "$SQL" "$@"; fi; }
+root_login() {
+  "$SQL" -e "SELECT 1" >/dev/null 2>&1 && return 0
+  [[ -t 0 ]] || die "Keine Anmeldung als MariaDB-root möglich. Bitte im Terminal starten (fragt dann nach dem root-Passwort)."
+  read -r -s -p "Passwort für MariaDB-Benutzer root: " ROOT_PW; echo
+  MYSQL_PWD="$ROOT_PW" "$SQL" -u root -e "SELECT 1" >/dev/null 2>&1 || die "MariaDB-root-Passwort falsch."
+}
+
+if [[ $NEW_CONFIG -eq 0 ]] && app_sql "$DB" -e "SELECT 1" >/dev/null 2>&1; then
+  echo "Datenbank '$DB' vorhanden (Zugang aus config.php), Daten bleiben erhalten"
+  app_sql "$DB" < sql/migrate-v2.sql
+  echo "Datenbank auf Version 2 gebracht; alles Weitere erledigt netmon beim ersten Aufruf selbst"
 else
-  [[ $NEW_CONFIG -eq 1 ]] || DB_PASS=$(php -r '$c = require "'"$WEB"'/config.php"; echo $c["db"]["pass"];')
-  "$SQL" <<SQLEOF
+  root_login
+  if root_sql -e "USE \`$DB\`" 2>/dev/null; then
+    [[ $NEW_CONFIG -eq 0 ]] || die "Datenbank '$DB' existiert schon, aber es gab keine config.php. Passwort bitte selbst in $WEB/config.php eintragen."
+    warn "Zugang aus config.php klappt nicht – Benutzer/Passwort in $WEB/config.php prüfen"
+    root_sql "$DB" < sql/migrate-v2.sql
+    echo "Datenbank '$DB' vorhanden, Daten bleiben erhalten"
+  else
+    [[ $NEW_CONFIG -eq 1 ]] || DB_PASS="$CFG_PASS"
+    root_sql <<SQLEOF
 CREATE DATABASE \`$DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'netmon'@'localhost' IDENTIFIED BY '$DB_PASS';
 ALTER USER 'netmon'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON \`$DB\`.* TO 'netmon'@'localhost';
 FLUSH PRIVILEGES;
 SQLEOF
-  "$SQL" "$DB" < sql/schema.sql
-  echo "Tabellen angelegt"
-  if [[ -n "$ZONES" ]]; then
-    "$SQL" "$DB" < "$ZONES"
-    echo "Bereiche aus $ZONES eingespielt"
+    root_sql "$DB" < sql/schema.sql
+    echo "Tabellen angelegt"
+    if [[ -n "$ZONES" ]]; then
+      root_sql "$DB" < "$ZONES"
+      echo "Bereiche aus $ZONES eingespielt"
+    fi
   fi
 fi
 
