@@ -289,6 +289,14 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
                 </div>
               </div>
 
+              <div class="panel-head border-top pt-3"><span class="eyebrow">Switch-LEDs</span></div>
+              <div class="panel-body">
+                <div class="set-row">
+                  <div class="txt"><div class="t">LEDs nachts aus</div><div class="d">Schaltet die Port-LEDs aller Switches, die das können, zur ersten Zeit aus und zur zweiten wieder an. Leer = nie.</div></div>
+                  <div class="ctl d-flex gap-2"><input class="form-control" type="time" name="led_off" title="aus um"><input class="form-control" type="time" name="led_on" title="an um"></div>
+                </div>
+              </div>
+
               <div class="panel-head border-top pt-3"><span class="eyebrow">Aufbewahrung</span></div>
               <div class="panel-body">
                 <div class="set-row">

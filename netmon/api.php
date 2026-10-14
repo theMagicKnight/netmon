@@ -785,12 +785,15 @@ function settingsSave(array $in): array
         'keep_event_days'     => fn($v) => (int) $v >= 7 && (int) $v <= 3650,
         'keep_scan_days'      => fn($v) => (int) $v >= 1 && (int) $v <= 365,
         'keep_history_days'   => fn($v) => (int) $v >= 1 && (int) $v <= 90,
+        'led_off'             => fn($v) => $v === '' || preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v),
+        'led_on'              => fn($v) => $v === '' || preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v),
     ];
     $labels = [
         'subnet' => 'Subnetz (z. B. 192.168.5.0/24)', 'strip_domain' => 'Domain-Endung', 'scan_interval' => 'Scan-Intervall',
         'offline_after' => 'Offline nach (1–20 Scans)', 'speedtest_interval' => 'Speedtest-Intervall',
         'keep_speedtest_days' => 'Speedtest-Rohdaten (1–365 Tage)', 'keep_event_days' => 'Ereignisse (7–3650 Tage)',
         'keep_scan_days' => 'Scan-Protokoll (1–365 Tage)', 'keep_history_days' => 'Verlauf (1–90 Tage)',
+        'led_off' => 'LEDs aus (Uhrzeit)', 'led_on' => 'LEDs an (Uhrzeit)',
     ];
     $save = [];
     foreach ($in as $k => $v) {

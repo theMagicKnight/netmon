@@ -144,6 +144,15 @@ final class NetgearGs316Driver extends SwitchDriver
         return $info;
     }
 
+    // LEDs: POST iss/specific/leds.html mit PORT_LED_STATUS (1 = an, 0 = aus), nach py-netgear-plus
+    public function setLeds(bool $on): void
+    {
+        $r = trim($this->get('iss/specific/leds.html?' . http_build_query(['Gambit' => $this->gambit]), ['PORT_LED_STATUS' => $on ? 1 : 0]));
+        if ($r !== 'SUCCESS') {
+            throw new RuntimeException('LEDs schalten fehlgeschlagen (Antwort: ' . mb_substr(strip_tags($r), 0, 60) . ')');
+        }
+    }
+
     public function pages(): array
     {
         $out = ['/' => $this->get('')];

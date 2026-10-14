@@ -16,6 +16,8 @@ const NETMON_DEFAULTS = [
     'keep_event_days'     => 365,
     'keep_scan_days'      => 30,
     'keep_history_days'   => 7,     // Verlauf Port-Verkehr / AP-Status (je Minute)
+    'led_off'             => '',     // Switch-LEDs aus um HH:MM (leer = nie)
+    'led_on'              => '',     // … und wieder an um HH:MM
     'scan_request'        => 0,      // „Jetzt scannen“ aus der Oberfläche
     'speedtest_request'   => 0,
     'room_layout'         => '',     // Positionen der Raumkarten (JSON)

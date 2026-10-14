@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 – 2026-10-14
+
+- Port-LEDs der Switches schalten: zeitgesteuert unter Einstellungen → Switch-LEDs (z. B. 22:00 aus, 06:30 an)
+  oder per Befehl `php /var/www/html/netmon/collector/leds.php aus|an [IP …]`.
+  Unterstützt: Netgear GS308Ev4/GS108Ev4/GS30xEP (neue Oberfläche) und GS316EP/EPP – nach py-netgear-plus.
+
 ## 1.0.0 – 2026-10-13
 
 Erste veröffentlichte Version.

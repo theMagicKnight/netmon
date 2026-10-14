@@ -162,6 +162,19 @@ final class NetgearPlus2Driver extends NetgearPlusDriver
         return $info;
     }
 
+    // LEDs: Schalter „Port-LEDs“ in der Oberfläche, POST port_led.cgi mit hash und portled (0 = an, 2 = aus)
+    // wie py-netgear-plus (GS30x-Reihe) und der Seite eines GS308Ev4
+    public function setLeds(bool $on): void
+    {
+        $hash = preg_match('#id=["\']hash["\'][^>]*value=["\']?(\w+)#i', $this->dash(), $m)
+             || preg_match('#name=["\']hash["\'][^>]*value=["\']?(\w+)#i', $this->dash(), $m) ? $m[1] : '';
+        $r = trim($this->get('port_led.cgi', ['hash' => $hash, 'portled' => $on ? 0 : 2]));
+        if ($r !== 'SUCCESS') {
+            throw new RuntimeException($r === 'CHECK HASH FAILED' ? 'Switch hat das Schalten abgelehnt (Sitzung abgelaufen)'
+                : 'LEDs schalten fehlgeschlagen (Antwort: ' . mb_substr(strip_tags($r), 0, 60) . ')');
+        }
+    }
+
     // Kabeltest: Port ist ein paar Sekunden ohne Link; die Weboberfläche wartet 11 s auf das Ergebnis
     public function cableTest(int $port): array
     {

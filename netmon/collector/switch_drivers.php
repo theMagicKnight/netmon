@@ -61,6 +61,8 @@ abstract class SwitchDriver
     // Messwerte für Verlauf/Live (Router: DSL, Internet-Rate …): [schlüssel => zahl] – null = keine
     public function metrics(): ?array { return null; }
     public function cableTest(int $port): array { throw new RuntimeException('Dieser Switch kann keinen Kabeltest'); }
+    // LEDs an der Front ein-/ausschalten (Ports arbeiten normal weiter)
+    public function setLeds(bool $on): void { throw new RuntimeException('Dieses Gerät kann die LEDs nicht schalten'); }
     // [seite => inhalt] für das Analyse-Paket
     public function pages(): array { return []; }
 
@@ -132,9 +134,21 @@ function switch_driver_list(): array
     foreach (array_keys(SWITCH_DRIVERS) as $k) {
         $cls = switch_driver_class($k);
         $out[] = ['key' => $k, 'label' => $cls::LABEL, 'hint' => trim($cls::HINT, '/i'), 'user' => $cls::NEEDS_USER,
-                  'cable' => (new ReflectionMethod($cls, 'cableTest'))->getDeclaringClass()->getName() === $cls];
+                  'cable' => (new ReflectionMethod($cls, 'cableTest'))->getDeclaringClass()->getName() === $cls,
+                  'leds'  => switch_can_leds($cls)];
     }
     return $out;
+}
+
+function switch_can_leds(string $cls): bool
+{
+    return (new ReflectionMethod($cls, 'setLeds'))->getDeclaringClass()->getName() !== SwitchDriver::class;
+}
+
+// LEDs eines Geräts schalten (mit Sperre, damit sich Cron und Oberfläche nicht in die Quere kommen)
+function switch_leds(PDO $db, array $dev, bool $on): void
+{
+    switch_locked($db, (int) $dev['id'], 20, fn() => switch_open($dev)->session(fn(SwitchDriver $d) => $d->setLeds($on)));
 }
 
 // Welcher Treiber passt? null = keiner

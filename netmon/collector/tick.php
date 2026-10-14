@@ -46,6 +46,14 @@ if ($s['speedtest_enabled']) {
     }
 }
 
+// Switch-LEDs nach Zeitplan
+$hm = date('H:i');
+if ($s['led_off'] !== '' && $hm === $s['led_off']) {
+    $run('leds', ['aus']);
+} elseif ($s['led_on'] !== '' && $hm === $s['led_on']) {
+    $run('leds', ['an']);
+}
+
 // Nächtliches Aufräumen um 3:30 Uhr
 if ($minute === 3 * 60 + 30) {
     $run('cleanup');
