@@ -5,6 +5,18 @@ tree, list and room view, and reads switches, access points and the router direc
 cable test, Wi-Fi clients, DSL values).
 *Deutsche Anleitung: [LIESMICH.md](LIESMICH.md)*
 
+![Network tree](docs/tree.png)
+
+| Rooms | Switch ports | Port traffic |
+|---|---|---|
+| ![Rooms](docs/rooms.png) | ![Switch](docs/switch.png) | ![Traffic](docs/traffic.png) |
+| **FritzBox DSL & internet** | **Access point / Wi-Fi clients** | **Speedtest** |
+| ![DSL](docs/dsl.png) | ![AP](docs/ap.png) | ![Speedtest](docs/speed.png) |
+| **Light theme** | **Mobile** | |
+| ![List, light theme](docs/list-light.png) | ![Mobile](docs/mobile.png) | |
+
+*Screenshots show a demo network with made-up devices.*
+
 ## Features
 
 - **Scan** with nmap: new devices, online/offline, IP changes as events; vendor from MAC
