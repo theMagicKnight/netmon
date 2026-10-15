@@ -8,6 +8,10 @@
   --nm-infra: #7F77DD;
   --nm-zone: #888780;
   --nm-warn: #BA7517;
+  --sp-10: #E24B4A;      /* Port-Tempo: 10 Mbit/s */
+  --sp-100: #E0A800;     /* 100 Mbit/s */
+  --sp-1000: #1D9E75;    /* 1 Gbit/s */
+  --sp-x: #378ADD;       /* 2,5 / 5 / 10 Gbit/s */
   --bs-body-font-family: "DM Sans", system-ui, sans-serif;
   --nav-h: 62px;
   --side-w: 264px;
@@ -536,3 +540,21 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 .gr-axis text { fill: var(--bs-secondary-color); font-size: 10.5px; }
 .gr-hovertime { font-size: .74rem; color: var(--bs-secondary-color); text-align: right; }
 .cable-tip .gr-svg { cursor: default; }
+
+/* Port-Tempo farbig: Linien im Baum und in den Räumen, Port-Kästchen */
+#tree .link.sp-10, .room-links .rl-base.sp-10 { stroke: color-mix(in srgb, var(--sp-10) 55%, var(--bs-border-color)); }
+#tree .link.sp-100, .room-links .rl-base.sp-100 { stroke: color-mix(in srgb, var(--sp-100) 55%, var(--bs-border-color)); }
+#tree .link.sp-1000, .room-links .rl-base.sp-1000 { stroke: color-mix(in srgb, var(--sp-1000) 55%, var(--bs-border-color)); }
+#tree .link.sp-x, .room-links .rl-base.sp-x { stroke: color-mix(in srgb, var(--sp-x) 55%, var(--bs-border-color)); }
+#tree .link[class*="sp-"] { stroke-width: 1.8; }
+#tree .flow.sp-10, .room-links .flow.sp-10 { stroke: var(--sp-10); }
+#tree .flow.sp-100, .room-links .flow.sp-100 { stroke: var(--sp-100); }
+#tree .flow.sp-1000, .room-links .flow.sp-1000 { stroke: var(--sp-1000); }
+#tree .flow.sp-x, .room-links .flow.sp-x { stroke: var(--sp-x); }
+.port-sq.sp-10, .port-strip i.sp-10 { background: var(--sp-10); }
+.port-sq.sp-100, .port-strip i.sp-100 { background: var(--sp-100); color: #1a1a1a; }
+.port-sq.sp-1000, .port-strip i.sp-1000 { background: var(--sp-1000); }
+.port-sq.sp-x, .port-strip i.sp-x { background: var(--sp-x); }
+.legend .sp { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: .25rem; }
+/* Tempo unbekannt (WLAN, Bereich, Gerät ohne Port-Abfrage): neutral, damit Grün eindeutig 1 Gbit/s heißt */
+#tree .flow:not([class*="sp-"]), .room-links .flow:not([class*="sp-"]) { stroke: color-mix(in srgb, var(--bs-body-color) 45%, transparent); }

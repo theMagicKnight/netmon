@@ -147,6 +147,10 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
           <span id="legendZone"><span class="dot" style="background:var(--nm-zone)"></span> Bereich</span>
           <span><span class="dot on"></span> online</span>
           <span><span class="dot off"></span> offline</span>
+          <span class="ms-sm-2" title="Tempo der Leitung (Port am Switch)"><span class="sp" style="background:var(--sp-10)"></span>10M</span>
+          <span><span class="sp" style="background:var(--sp-100)"></span>100M</span>
+          <span><span class="sp" style="background:var(--sp-1000)"></span>1G</span>
+          <span><span class="sp" style="background:var(--sp-x)"></span>2,5G+</span>
         </div>
         <div id="netList"></div>
         <div id="tree"></div>

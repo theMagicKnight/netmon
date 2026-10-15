@@ -41,7 +41,16 @@ const typeLabel = (t) => TYPE_LABELS[t] || t;
 const iconFor = (d) => (d.kind !== 'zone' && ICONS[d.type]) || null;
 
 // Switch-Ports (Netgear Plus): Farbe nach Link und Geschwindigkeit
-const portClass = (p) => (!p.link ? 'off' : parseInt(p.speed, 10) >= 1000 ? 'on' : 'slow');
+// Port-Tempo in Mbit/s ('100M', '1000M', '2.5G', '10G' …) und Farbklasse: 10 rot, 100 gelb, 1000 grün, mehr blau
+const speedMbps = (s) => {
+  const m = String(s || '').match(/(\d+(?:[.,]\d+)?)\s*([GM])?/i);
+  return m ? parseFloat(m[1].replace(',', '.')) * (/g/i.test(m[2] || '') ? 1000 : 1) : null;
+};
+const speedClass = (s) => {
+  const v = speedMbps(s);
+  return v == null ? '' : v > 1000 ? 'sp-x' : v >= 1000 ? 'sp-1000' : v >= 100 ? 'sp-100' : 'sp-10';
+};
+const portClass = (p) => (!p.link ? 'off' : (parseInt(p.speed, 10) >= 1000 ? 'on ' : 'slow ') + speedClass(p.speed));
 const portTitle = (p) => `Port ${p.p}: ${p.link ? 'Link ' + (p.speed || '') : 'kein Link'}`;
 const portStrip = (ports, uplink) => (ports ? `<span class="port-strip">${ports.map((p) =>
   `<i class="${portClass(p)}${p.p === uplink ? ' up' : ''}" title="${esc(portTitle(p) + (p.p === uplink ? ' · Uplink' : ''))}"></i>`).join('')}</span>` : '');
@@ -616,8 +625,10 @@ function drawRoomLinks() {
       html += `<g><path class="rl-wlan" d="${d}"/>${hit}</g>`;
       continue;
     }
-    html += `<g><path class="rl-base${l.live ? '' : ' rl-dead'}" d="${d}"/>`
-      + (l.live ? `<path class="flow" d="${d}"/>` : '') + hit + '</g>';
+    const sps = l.items.map((x) => (x.port?.link ? speedMbps(x.port.speed) : null)).filter((v) => v != null);
+    const sc = sps.length ? speedClass(Math.min(...sps) + 'M') : '';
+    html += `<g><path class="rl-base${l.live ? '' : ' rl-dead'}${l.live && sc ? ' ' + sc : ''}" d="${d}"/>`
+      + (l.live ? `<path class="flow ${sc}" d="${d}"/>` : '') + hit + '</g>';
   }
   svg.innerHTML = html;
 }
@@ -960,11 +971,21 @@ function drawTree(root) {
 
   const linkPath = d3.linkHorizontal().x((d) => d.y).y((d) => d.x);
   const isLive = (n) => (n.data.kind === 'zone' ? n.on > 0 : n.data.online !== false);
+  // Tempo der Leitung: Port am Switch darüber, sonst Uplink-Port des Geräts (WLAN und Bereiche ohne Farbe)
+  const linkSp = (l) => {
+    const s = l.source.data, d = l.target.data;
+    if (s.kind === 'zone' || d.kind === 'zone' || (d.wifi && d.wifi.apId === s.dbId)) return '';
+    const pNo = /^\d+$/.test(String(d.port || '')) ? Number(d.port) : null;
+    const port = pNo && s.ports ? s.ports.find((p) => p.p === pNo) : null;
+    const upl = d.uplink && d.ports ? d.ports.find((p) => p.p === d.uplink) : null;
+    const p = port || upl;
+    return p && p.link ? speedClass(p.speed) : '';
+  };
   svg.append('g').selectAll('path').data(root.links()).join('path')
-    .attr('class', (l) => 'link' + (isLive(l.target) ? '' : ' dead')).attr('d', linkPath);
+    .attr('class', (l) => 'link' + (isLive(l.target) ? (linkSp(l) ? ' ' + linkSp(l) : '') : ' dead')).attr('d', linkPath);
   // Datenstrom: grüne Punkte wandern vom Router zum Gerät, Tempo leicht unterschiedlich
   svg.append('g').selectAll('path').data(root.links().filter((l) => isLive(l.target))).join('path')
-    .attr('class', 'flow').attr('d', linkPath)
+    .attr('class', (l) => 'flow ' + linkSp(l)).attr('d', linkPath)
     .style('animation-duration', (l, i) => `${(1.4 + ((i * 7) % 10) / 10).toFixed(1)}s`)
     .style('animation-delay', (l, i) => `-${((i * 3) % 10) / 10}s`);
   // Unsichtbare breite Linien zum Überfahren mit der Maus -> Tooltip mit Kabel-/WLAN-Infos
