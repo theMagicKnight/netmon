@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 – 2026-10-16
+
+- install.sh `--with-tailscale`: installiert Tailscale, schaltet IP-Weiterleitung ein und bietet das Heimnetz als
+  Subnet-Route an (Router, Switches, APs von unterwegs erreichbar); warnt bei weit verbreiteten Netzen wegen Kollisionen
+- Subnetz-Erkennung ignoriert die Tailscale-Schnittstelle
+
 ## 1.2.1 – 2026-10-16
 
 - Neue Bilder in README/docs (farbige Leitungen, Legende)

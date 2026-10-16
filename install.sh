@@ -6,6 +6,7 @@
 #   sudo ./install.sh --zones sql/zones-beispiel.sql        # mit vorbereiteten Bereichen
 #   sudo ./install.sh --subnet 192.168.1.0/24 --web /var/www/html/netmon --speedtest-every 20
 #   sudo ./install.sh --no-speedtest                    # Speedtest zunächst aus (in den Einstellungen umschaltbar)
+#   sudo ./install.sh --with-tailscale                  # zusätzlich Fernzugriff: Tailscale + Heimnetz als Subnet-Route
 #
 # Alles landet in EINEM Ordner (Standard /var/www/html/netmon): Weboberfläche, collector/ und config.php.
 # Ein zweiter Aufruf aktualisiert; Datenbank, config.php und Einstellungen bleiben erhalten.
@@ -19,6 +20,7 @@ SPEED_EVERY=""          # Minuten zwischen zwei Speedtests (10, 15, 20, 30 oder 
 SPEED_ON=1
 SPEED_OFF_GIVEN=0
 DB=netmon
+TAILSCALE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -27,10 +29,17 @@ while [[ $# -gt 0 ]]; do
     --zones)           ZONES="$2"; shift 2 ;;
     --speedtest-every) SPEED_EVERY="$2"; shift 2 ;;
     --no-speedtest)    SPEED_ON=0; SPEED_OFF_GIVEN=1; shift ;;
-    -h|--help)         sed -n '2,12p' "$0"; exit 0 ;;
+    --with-tailscale)  TAILSCALE=1; shift ;;
+    -h|--help)         sed -n '2,13p' "$0"; exit 0 ;;
     *) echo "Unbekannte Option: $1"; exit 1 ;;
   esac
 done
+
+# Heimnetz ermitteln: Schnittstelle der Standardroute (nie tailscale0), dort das direkt verbundene Netz
+detect_subnet() {
+  IFACE=$(ip -o -4 route show default | awk '$5 !~ /^tailscale/ {print $5; exit}')
+  SUBNET=$([[ -n "$IFACE" ]] && ip -o -4 route show dev "$IFACE" scope link | awk '{print $1; exit}' || true)
+}
 
 say()  { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m!!  %s\033[0m\n' "$*"; }
@@ -109,8 +118,7 @@ if [[ -f "$WEB/config.php" ]]; then
   echo "config.php vorhanden, bleibt unverändert"
 else
   if [[ -z "$SUBNET" ]]; then
-    IFACE=$(ip -o -4 route show default | awk '{print $5; exit}')
-    SUBNET=$(ip -o -4 route show dev "$IFACE" scope link | awk '{print $1; exit}')
+    detect_subnet
     [[ -n "$SUBNET" ]] || die "Subnetz nicht erkannt, bitte mit --subnet angeben."
     echo "Subnetz erkannt: $SUBNET (Schnittstelle $IFACE)"
   fi
@@ -194,6 +202,35 @@ if [[ -n "$SPEED_EVERY" ]]; then
   setting speedtest_interval "$SPEED_EVERY"
 fi
 echo "Taktgeber jede Minute; Scan- und Speedtest-Intervalle unter Einstellungen"
+
+# ---------------------------------------------------------------
+if [[ $TAILSCALE -eq 1 ]]; then
+  say "Tailscale (Fernzugriff)"
+  if command -v tailscale >/dev/null; then
+    echo "bereits installiert ($(tailscale version | head -1))"
+  else
+    curl -fsSL https://tailscale.com/install.sh | sh || die "Tailscale-Installation fehlgeschlagen"
+  fi
+  [[ -n "$SUBNET" ]] || detect_subnet
+  [[ -n "$SUBNET" ]] || die "Heimnetz nicht erkannt, bitte mit --subnet angeben."
+  echo "Heimnetz für die Subnet-Route: $SUBNET"
+  case "$SUBNET" in
+    192.168.178.0/24|192.168.0.0/24|192.168.1.0/24|192.168.2.0/24|10.0.0.0/24)
+      warn "$SUBNET ist ein sehr verbreitetes Netz. Hat ein zweites Tailscale-Netz (z. B. bei Freunden) dasselbe, kollidieren die Routen – dann eines umstellen." ;;
+  esac
+  printf 'net.ipv4.ip_forward = 1\nnet.ipv6.conf.all.forwarding = 1\n' > /etc/sysctl.d/99-tailscale.conf
+  sysctl -q -p /etc/sysctl.d/99-tailscale.conf
+  if tailscale status >/dev/null 2>&1; then
+    tailscale set --ssh --advertise-routes="$SUBNET"
+    echo "angemeldet, Subnet-Route $SUBNET angeboten"
+  else
+    echo "Gleich erscheint ein Anmelde-Link – im Browser öffnen und mit deinem Tailscale-Konto bestätigen."
+    tailscale up --ssh --advertise-routes="$SUBNET"
+  fi
+  TS_IP=$(tailscale ip -4 2>/dev/null | head -1 || true)
+  echo "Tailscale-IP dieses Rechners: ${TS_IP:-?}"
+  warn "Noch einmalig nötig: login.tailscale.com/admin/machines → dieser Rechner → „…“ → Edit route settings → $SUBNET anhaken"
+fi
 
 # ---------------------------------------------------------------
 say "Erster Scan"

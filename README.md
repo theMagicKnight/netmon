@@ -51,6 +51,7 @@ Optional: Python 3 venv with `tplinkrouterc6u` for TP-Link access points.
 git clone https://github.com/theMagicKnight/netmon.git
 cd netmon
 sudo bash install.sh            # checks what is installed, adds the missing parts
+# optional: --with-tailscale    remote access, home network offered as Tailscale subnet route
 ```
 
 The script checks Apache/PHP/MariaDB/nmap and the PHP extensions, installs only what is missing, copies the app to
