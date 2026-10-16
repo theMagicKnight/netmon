@@ -203,11 +203,16 @@ IP=$(ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="s
 [[ -n "$IP" ]] || IP=$(hostname -I | awk '{print $1}')
 URL="http://$IP/${WEB#/var/www/html/}/"
 say "Fertig"
+SRC=$(pwd)
+VER=$(cat VERSION 2>/dev/null || echo "?")
+if [[ $NEW_CONFIG -eq 1 ]]; then FIRST="   (beim ersten Aufruf legst du dort dein Admin-Konto an)"; else FIRST=""; fi
+if [[ -d .git ]]; then UPD="cd $SRC && git pull && sudo bash install.sh"; else UPD="neues Paket entpacken und darin  sudo bash install.sh  starten"; fi
 cat <<HINTS
-  Weboberfläche:  $URL   (beim ersten Aufruf legst du dort dein Admin-Konto an)
+  netmon $VER
+  Weboberfläche:  $URL$FIRST
   Konfiguration:  $WEB/config.php   (Datenbank-Zugang; Subnetz und Intervalle stellst du in der Weboberfläche ein)
   Protokoll:      /var/log/netmon-tick.log
-  Aktualisieren:  neues Paket entpacken und  sudo bash install.sh  erneut starten – Daten bleiben erhalten
+  Aktualisieren:  $UPD   (Daten und config.php bleiben erhalten)
 
   Geräte-Abfrage (Switches, FritzBox, Access Points): Gerät öffnen → Einstellungen → Treiber + Passwort.
   TP-Link-Access-Points brauchen zusätzlich Python, siehe LIESMICH.md „Python für TP-Link“.

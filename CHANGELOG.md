@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 – 2026-10-16
+
+- Neue Bilder in README/docs (farbige Leitungen, Legende)
+- Baum: Zusatz wie „4/4 online“ über offenen Zweigen entfällt, wenn er in die nächste Spalte ragen würde
+- install.sh: Abschluss-Hinweise zeigen Version und den passenden Update-Befehl (git pull), Admin-Hinweis nur bei Neuinstallation
+
 ## 1.2.0 – 2026-10-15
 
 - Port-Tempo farbig im Baum, in der Raumansicht und an den Port-Kästchen: 10 Mbit/s rot, 100 gelb, 1 Gbit/s grün,

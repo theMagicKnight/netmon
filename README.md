@@ -34,6 +34,8 @@ cable test, Wi-Fi clients, DSL values).
   | AVM FRITZ!Box | DSL sync, SNR, CRC, internet rate, LAN ports (TR-064) | in use |
 
 - Port front panel, link speed, traffic history (1 h / 24 h / 7 days) and **live view**, cable test, health checks
+- **Link speed in colour** on every cable in tree and room view: 10M red, 100M yellow, 1G green, 2.5G+ blue
+- **Switch LEDs off at night** on a schedule or via `collector/leds.php aus|an` (Netgear GS30x/GS108Ev4/GS316)
 - **Connection suggestions** from switch port descriptions and the FritzBox host list
 - **Analysis package**: one click collects a device's web pages to build a driver for a new model
 - Dark/light theme, mobile friendly, all assets bundled locally (no CDN)

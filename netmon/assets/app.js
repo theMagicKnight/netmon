@@ -937,6 +937,9 @@ function drawTree(root) {
   let fit = small ? 380 : 460;
   root.each((n) => { if (n.depth > 0) fit = Math.min(fit, (avail - reach(n)) / n.depth); });
   const dy = Math.max(small ? 60 : 140, fit);
+  // Beschriftung über offenen Zweigen darf nicht in die nächste Spalte ragen – sonst Zusatz („4/4 online“) weglassen
+  const metaFits = (n) => !above(n) || leftRoot(n)
+    || textWidth(labelText(n), 12.5, 500) + 6 + textWidth(metaText(n), 11, 400) <= dy - 10;
 
   const hasIcons = root.descendants().some((n) => iconFor(n.data));
   const dx = hasIcons ? (small ? 32 : 34) : 26;
@@ -1030,7 +1033,7 @@ function drawTree(root) {
     .attr('dy', (n) => (leftRoot(n) ? '1.3em' : null))
     .attr('dx', (n) => (leftRoot(n) ? null : 6))
     .attr('fill', (n) => (n.data.kind === 'device' && !n.data.online && !n.data.virtual ? COLORS.offline : null))
-    .text(metaText);
+    .text((n) => (metaFits(n) ? metaText(n) : ''));
 
   node.append('title').text((n) => {
     const d = n.data;
