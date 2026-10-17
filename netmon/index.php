@@ -445,7 +445,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
               <div class="form-text">Eigener FRITZ!Box-Benutzer mit dem Recht „FRITZ!Box Einstellungen“.</div>
             </div>
             <div class="row g-2">
-              <div class="col-7">
+              <div class="col-7" id="swPassCol">
                 <label class="form-label small text-body-secondary mb-1" for="fSwPass">Passwort der Weboberfläche</label>
                 <input class="form-control" id="fSwPass" name="swPass" type="password" autocomplete="new-password" maxlength="64">
               </div>

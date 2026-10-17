@@ -13,6 +13,7 @@ const SWITCH_DRIVERS = [
     'netgear_plus'  => ['class' => 'NetgearPlusDriver', 'file' => 'netgear_plus.php'],
     'tplink_archer' => ['class' => 'TplinkArcherDriver', 'file' => 'tplink_archer.php'],
     'avm_fritzbox'  => ['class' => 'FritzBoxDriver', 'file' => 'avm_fritzbox.php'],
+    'telekom_speedport' => ['class' => 'SpeedportDriver', 'file' => 'telekom_speedport.php'],
     'tplink_easy'   => ['class' => 'TplinkEasyDriver', 'file' => 'tplink_easy.php'],
 ];
 
@@ -24,6 +25,7 @@ abstract class SwitchDriver
     public const LABEL = '';
     public const HINT  = '/^$/';
     public const NEEDS_USER = false;   // braucht das Gerät zusätzlich einen Benutzernamen?
+    public const NEEDS_PASS = true;    // false: Daten ohne Anmeldung lesbar (Speedport)
 
     private $curl;
 
@@ -133,7 +135,7 @@ function switch_driver_list(): array
     $out = [];
     foreach (array_keys(SWITCH_DRIVERS) as $k) {
         $cls = switch_driver_class($k);
-        $out[] = ['key' => $k, 'label' => $cls::LABEL, 'hint' => trim($cls::HINT, '/i'), 'user' => $cls::NEEDS_USER,
+        $out[] = ['key' => $k, 'label' => $cls::LABEL, 'hint' => trim($cls::HINT, '/i'), 'user' => $cls::NEEDS_USER, 'pass' => $cls::NEEDS_PASS,
                   'cable' => (new ReflectionMethod($cls, 'cableTest'))->getDeclaringClass()->getName() === $cls,
                   'leds'  => switch_can_leds($cls)];
     }

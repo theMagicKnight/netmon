@@ -32,6 +32,7 @@ cable test, Wi-Fi clients, DSL values).
   | TP-Link Easy Smart | TL-SG105E/108E/116E … | draft, untested |
   | TP-Link Archer / Deco | Wi-Fi clients, CPU/memory | in use (needs Python, see below) |
   | AVM FRITZ!Box | DSL sync, SNR, CRC, internet rate, LAN ports (TR-064) | in use |
+  | Telekom Speedport Smart 3/4 | DSL sync, LAN ports, Wi-Fi clients with signal – **no password needed** | in use (Smart 4R) |
 
 - Port front panel, link speed, traffic history (1 h / 24 h / 7 days) and **live view**, cable test, health checks
 - **Link speed in colour** on every cable in tree and room view: 10M red, 100M yellow, 1G green, 2.5G+ blue
@@ -83,6 +84,7 @@ Unknown model? Click **Analysis package** and open an issue with the file (it co
 - [smrt](https://github.com/pklaus/smrt) / [philippechataignon-smrt](https://github.com/rgl/philippechataignon-smrt) (GPL) – protocol notes only, no code used
 - [tplinkrouterc6u](https://github.com/AlexandrErohin/TP-Link-Archer-C6U) – used as library for TP-Link access points
 - AVM [TR-064](https://avm.de/service/schnittstellen/) documentation
+- [dsl-monitoring](https://github.com/aaronk6/dsl-monitoring) by aaronk6 – how to decrypt the Speedport `Status.json`
 - Bundled: Bootstrap 5.3 (MIT), D3 (ISC), Chart.js (MIT), DM Sans / DM Serif Display (SIL OFL 1.1)
 
 No code was copied from the referenced projects; the drivers are written from scratch in PHP.

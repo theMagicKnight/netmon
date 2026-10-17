@@ -590,9 +590,6 @@ function switchPoll(array $in): array
     require_once NETMON_DIR . '/collector/switch_drivers.php';
     $dev = switchDevice((int) ($in['id'] ?? 0));
     $pass = (string) ($in['swPass'] ?? '');
-    if ($pass === '' && !$dev['sw_pass']) {
-        throw new InvalidArgumentException('Bitte das Passwort der Switch-Weboberfläche eintragen');
-    }
     $driver = (string) ($in['swDriver'] ?? '');
     if ($driver === '' || $driver === 'auto') {
         $driver = switch_detect($dev['ip']);
@@ -605,6 +602,12 @@ function switchPoll(array $in): array
         $driver = $found;   // gewählter Treiber passt nicht zum Gerät, ein anderer schon (z. B. neue Netgear-Oberfläche)
     }
     $dev['sw_driver'] = $driver;
+    if ($pass === '' && !$dev['sw_pass']) {
+        if ((switch_driver_class($driver))::NEEDS_PASS) {
+            throw new InvalidArgumentException('Bitte das Passwort der Weboberfläche eintragen');
+        }
+        $pass = '-';   // Gerät ohne Anmeldung (Speedport): Platzhalter, damit es regelmäßig abgefragt wird
+    }
     $user = trim((string) ($in['swUser'] ?? ''));
     if ($user !== '') {
         $dev['sw_user'] = mb_substr($user, 0, 32);

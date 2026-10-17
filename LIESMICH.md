@@ -136,6 +136,15 @@ Name des anderen Switches). netmon schlägt die Verbindungen dann im Gerätedial
 - Damit sich Cron und Live-Ansicht nicht gegenseitig abmelden, meldet sich netmon je Gerät immer nur einmal
   gleichzeitig an (Sperre über MariaDB `GET_LOCK`).
 
+## Speedport (Treiber „Telekom Speedport“)
+
+Kein Passwort nötig: In netmon den Speedport öffnen → Einstellungen → Typ „Router“, Treiber „Telekom Speedport“
+(oder „automatisch“) → „Verbinden & abfragen“.
+
+Gelesen wird die Statusseite `/data/Status.json` der Weboberfläche (bei Smart 3/4 verschlüsselt, netmon entschlüsselt
+sie selbst): Modell, Firmware, DSL-Status und -Sync, Internet verbunden seit, LAN-Buchsen mit Tempo und die Geräte im
+WLAN des Speedports mit Signalstärke. Internet-Rate und Störabstand liefert der Speedport dort nicht.
+
 ## FRITZ!Box (Treiber „AVM FRITZ!Box“)
 
 1. In der FritzBox: Heimnetz → Netzwerk → Netzwerkeinstellungen → „Zugriff für Anwendungen zulassen“ und
@@ -168,6 +177,7 @@ dann enthält das **Analyse-Paket** alle Seiten mit Anmeldung, damit der Treiber
 | TP-Link Easy Smart | TL-SG105E, TL-SG108E, TL-SG116E, TL-SG1016PE … (Benutzer meist „admin“) | Entwurf, ungetestet – nur Link/Tempo, keine Datenrate (Switch liefert nur Paketzähler) |
 | TP-Link Archer / Deco | Archer AX55 Pro u. a. (über tplinkrouterc6u) | im Einsatz |
 | AVM FRITZ!Box | 7590 u. a. (TR-064) | im Einsatz |
+| Telekom Speedport | Smart 3, Smart 4, Smart 4R (ohne Passwort) | im Einsatz (Smart 4R) |
 
 „Gegen Beispielseiten getestet“ heißt: Anmeldung und Seitenaufbau stammen aus dem Projekt
 [py-netgear-plus](https://github.com/foxey/py-netgear-plus) (Apache-2.0) und wurden mit den dort veröffentlichten
@@ -185,5 +195,7 @@ Original-Seiten der Switches geprüft – an echter Hardware noch nicht. Klappt 
 - **smrt** (https://github.com/pklaus/smrt, https://github.com/rgl/philippechataignon-smrt, GPL) – Beschreibung des
   UDP-Protokolls der Easy Smart Configuration Utility; nur zum Nachlesen, netmon nutzt die Weboberfläche.
 - **AVM TR-064** (https://avm.de/service/schnittstellen/) – Schnittstelle des FritzBox-Treibers.
+- **dsl-monitoring** von aaronk6 (https://github.com/aaronk6/dsl-monitoring) – wie die `Status.json` der Speedports
+  entschlüsselt wird (Treiber „Telekom Speedport“).
 
 Jede Treiberdatei unter `collector/drivers/` nennt ihre Quellen im Kopf.

@@ -1457,7 +1457,7 @@ $('#devTabs').addEventListener('click', (e) => {
   if (b) devTab(b.dataset.dtab);
 });
 
-const NO_CABLE = ['avm_fritzbox', 'tplink_archer', 'tplink_easy', 'netgear_jgs', 'netgear_gs316'];   // Treiber ohne Kabeltest
+const NO_CABLE = ['avm_fritzbox', 'telekom_speedport', 'tplink_archer', 'tplink_easy', 'netgear_jgs', 'netgear_gs316'];   // Treiber ohne Kabeltest
 // Port-Tabelle im Gerätedialog (für alle sichtbar, sobald der Switch abgefragt wird)
 function renderPorts(d) {
   const box = $('#devPorts');
@@ -1561,7 +1561,8 @@ const GR_LIVE_WIN = { sw: 300, ap: 600, fb: 300 };        // sichtbares Zeitfens
 const GR_LIVE_MAX = 10 * 60 * 1000;              // nach 10 Minuten automatisch pausieren (schont Switch und AP)
 const GR_C = { rx: COLORS.down, tx: COLORS.up, cpu: COLORS.up, mem: COLORS.ping, c24: COLORS.ping, c5: COLORS.down,
   wan_rx: COLORS.down, wan_tx: COLORS.up, dsl_down: COLORS.down, dsl_up: COLORS.up, snr_down: COLORS.down, snr_up: COLORS.up, crc: COLORS.ping };
-const grKind = (d) => (d?.driver === 'avm_fritzbox' ? 'fb' : d?.ports ? 'sw' : 'ap');
+const ROUTER_DRV = ['avm_fritzbox', 'telekom_speedport'];   // Router mit DSL-Werten: Grafik „Internet & DSL“
+const grKind = (d) => (ROUTER_DRV.includes(d?.driver) ? 'fb' : d?.ports ? 'sw' : 'ap');
 // Router-Messwerte: Fehlerzähler in „je Minute“ umrechnen (Rückgang = neu synchronisiert -> Lücke)
 function grCrc(list) {
   let prev = null;
@@ -1576,7 +1577,7 @@ function grCrc(list) {
 
 function graphInit(d) {
   graphStop();
-  const has = !!(d && (d.ports || d.wifiClients || d.driver === 'tplink_archer' || (d.driver === 'avm_fritzbox' && d.swPass)));
+  const has = !!(d && (d.ports || d.wifiClients || d.driver === 'tplink_archer' || (ROUTER_DRV.includes(d.driver) && d.swPass)));
   GR.dev = has ? d : null;
   GR.hist = null; GR.hist1h = null; GR.samples = []; GR.paused = false; GR.msg = ''; GR.hoverT = null;
   GR.range = d?.swPass ? store.get('netmon-graph-range') || '1h' : '1h';
@@ -1806,7 +1807,7 @@ function graphRender() {
       { key: 'crc', list, keys: [['crc', false]], min: 1, fmt: (v) => grNum(v) + '/Min.',
         label: `<span class="gr-who">CRC-Fehler<small><span class="gr-key"><i style="background:${GR_C.crc}"></i>je Minute</span></small></span>`,
         val: (q) => `${grNum(q?.crc)} / Min.` },
-    ];
+    ].filter((r) => r.key === 'sync' || r.list.some((q) => r.keys.some(([k]) => q?.[k] != null)));   // Speedport: nur was er liefert
   } else {
     const list = S?.ap || [];
     rows = [
@@ -2037,6 +2038,10 @@ function syncSwUser() {
   const drv = (swDrivers || []).find((x) => x.key === f.swDriver.value);
   const guess = f.swDriver.value === 'auto' && /fritz|avm/i.test([f.name.value, currentDev?.vendor, currentDev?.hostname].join(' '));
   $('#swUserRow').classList.toggle('d-none', !(drv?.user || guess || f.swUser.value));
+  // Speedport & Co.: Daten ohne Anmeldung lesbar – kein Passwortfeld
+  const noPass = drv && drv.pass === false;
+  $('#swPassCol').classList.toggle('invisible', noPass);
+  if (noPass) f.swPass.value = '';
 }
 $('#fSwDriver')?.addEventListener('change', syncSwUser);
 

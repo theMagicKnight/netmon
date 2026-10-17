@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 – 2026-10-17
+
+- Neuer Treiber **Telekom Speedport** (Smart 3/4, getestet mit Smart 4R): ohne Passwort; Modell, Firmware, DSL-Status
+  und -Sync (Verlauf „Internet & DSL“), LAN-Buchsen mit Tempo, WLAN-Geräte am Speedport mit Signal
+- Treiber können ohne Anmeldung auskommen – das Passwortfeld wird dann ausgeblendet
+- Grafik „Internet & DSL“ zeigt nur die Werte, die der Router auch liefert
+
 ## 1.3.1 – 2026-10-17
 
 - TP-Link im Router-Modus (z. B. Archer C80): WLAN-Clients werden jetzt zugeordnet, obwohl der Router kein Signal
