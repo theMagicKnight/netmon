@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.2 – 2026-10-17
+
+- Baum: Geräte im WLAN des Routers (Speedport, FritzBox) hängen an einem eigenen Knoten „WLAN“ unter dem Router –
+  lässt sich zuklappen; ohne WLAN-Geräte am Router (z. B. WLAN aus) erscheint er nicht
+
+## 1.4.1 – 2026-10-17
+
+- Router mit Ports und eigenem WLAN (Speedport): Liste der WLAN-Geräte im Gerätedialog unter der Port-Ansicht
+
 ## 1.4.0 – 2026-10-17
 
 - Neuer Treiber **Telekom Speedport** (Smart 3/4, getestet mit Smart 4R): ohne Passwort; Modell, Firmware, DSL-Status

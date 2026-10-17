@@ -38,7 +38,7 @@ const TYPE_LABELS = {
   lautsprecher: 'Lautsprecher', funk: 'Funk / Hotspot', sonstiges: 'Sonstiges',
 };
 const typeLabel = (t) => TYPE_LABELS[t] || t;
-const iconFor = (d) => (d.kind !== 'zone' && ICONS[d.type]) || null;
+const iconFor = (d) => (d.kind === 'zone' ? (d.zoneType === 'wlan' ? ICONS.ap : null) : ICONS[d.type]) || null;
 
 // Switch-Ports (Netgear Plus): Farbe nach Link und Geschwindigkeit
 // Port-Tempo in Mbit/s ('100M', '1000M', '2.5G', '10G' …) und Farbklasse: 10 rot, 100 gelb, 1000 grün, mehr blau
@@ -680,6 +680,15 @@ function treeTipHtml(src, dst) {
   const rooms = s.location && d.location && s.location !== d.location ? sub(`${esc(s.location)} → ${esc(d.location)}`) : '';
   const head = (kind) => `<div class="hd">${name(s)} → ${name(d)}</div><div class="sub">${kind}</div>`;
 
+  const wlanNode = (x) => x.kind === 'zone' && x.zoneType === 'wlan';
+  if (wlanNode(d)) return head('WLAN des Routers') + it(`${dst.on ?? 0} von ${dst.cnt ?? 0} Geräten online`);
+  // Gerät im WLAN des Routers: wie beim AP Signal und Band zeigen
+  const w0 = d.wifi;
+  if (wlanNode(s) && w0) {
+    return head('WLAN' + (w0.guest ? ' · Gastnetz' : ''))
+      + it(`${sigBars(w0.signal)} <b>${w0.signal ?? '–'} dBm</b> (${sigText(w0.signal) || 'unbekannt'})${w0.band ? ' · ' + w0.band + ' GHz' : ''}`
+        + sub(`Rate ↓ ${fmtKbps(w0.rx)} ↑ ${fmtKbps(w0.tx)}`)) + rooms;
+  }
   if (s.kind === 'zone') {
     return head('Zuordnung über IP-Bereich ' + esc(s.range || ''))
       + it('Anschluss unbekannt – im Gerät unter Einstellungen den Switch/Port eintragen');
@@ -1018,7 +1027,7 @@ function drawTree(root) {
     .attr('fill', (n) => (n.data.virtual || (n.data.kind === 'zone' && !n.children) ? 'var(--bs-body-bg)' : nodeColor(n.data)))
     .attr('stroke-dasharray', (n) => (n.data.virtual ? '3 2.5' : null));
   node.filter((n) => iconFor(n.data)).append('g')
-    .attr('class', (n) => 'icon' + (isLive(n) ? ' live' : '') + (n.data.virtual ? ' virt' : ''))
+    .attr('class', (n) => 'icon' + (isLive(n) ? ' live' : '') + (n.data.virtual || (n.data.kind === 'zone' && !n.children) ? ' virt' : ''))
     .attr('transform', 'translate(-7.5,-7.5) scale(0.625)')
     .html((n) => iconFor(n.data));
 
@@ -1526,7 +1535,8 @@ function renderPorts(d) {
         ${dis.has(s.key) ? `<button type="button" class="btn btn-ghost btn-sm" data-sug-undo="${i}">wieder vorschlagen</button>`
           : `<button type="button" class="btn btn-ghost btn-sm" data-sug-hide="${i}" title="Nicht mehr vorschlagen, bis sich die Port-Beschreibung ändert">Ignorieren</button>`}</div>`).join('')}</div>` : '';
   side._sug = sug;
-  side.innerHTML = panel + sugHtml;
+  // Router mit eigenem WLAN (Speedport): Geräte im WLAN unter den Ports
+  side.innerHTML = panel + sugHtml + (d.wifiClients ? `<div class="mt-3">${wifiClientList(d)}</div>` : '');
   box.innerHTML = `<div class="small-label mb-1 mt-3">Ports${t ? ' · Stand ' + esc(hhmm(t)) : ''}</div><table class="port-table">${rows}</table>`;
   box.classList.remove('d-none');
 }

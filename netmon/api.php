@@ -174,6 +174,11 @@ function tree(): array
             && (!$d['parent_id'] || in_array($typeOf[$d['parent_id']] ?? '', ['router', 'ap'], true));
         if ($id === $rootId) {
             $parent = null;
+        } elseif ($wifiAuto && ($typeOf[$w['apId']] ?? '') === 'router') {
+            // WLAN des Routers als eigener, zuklappbarer Zweig unter dem Router
+            $parent = 'w' . $w['apId'];
+            $nodes[$parent] ??= ['id' => $parent, 'parent' => 'd' . $w['apId'], 'kind' => 'zone', 'zoneType' => 'wlan',
+                                 'label' => 'WLAN', 'range' => 'Geräte im WLAN des Routers'];
         } elseif ($wifiAuto) {
             $parent = 'd' . $w['apId'];
         } elseif ($d['parent_id']) {
