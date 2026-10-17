@@ -60,7 +60,9 @@ const sigText = (s) => ['', 'schwach', 'mäßig', 'gut', 'sehr gut'][sigLevel(s)
 const sigBars = (s) => (s === null || s === undefined ? '' : `<span class="sig sig-${sigLevel(s)}" title="${s} dBm · ${sigText(s)}"><i></i><i></i><i></i><i></i></span>`);
 const fmtKbps = (k) => (k ? (k >= 1000 ? Math.round(k / 1000) + ' Mbit/s' : k + ' kbit/s') : '–');
 const fmtDur = (s) => (!s ? '' : s < 3600 ? Math.round(s / 60) + ' min' : s < 172800 ? Math.round(s / 3600) + ' h' : Math.round(s / 86400) + ' Tage');
-const wifiShort = (w) => (w ? `${w.band ? w.band + ' GHz · ' : ''}${w.signal} dBm` : '');
+// Router-Modus (z. B. Archer C80) liefert kein Signal – dann nur „WLAN“ und das Band
+const dbm = (v) => (v == null ? 'WLAN' : `${v} dBm`);
+const wifiShort = (w) => (w ? `${w.band ? w.band + ' GHz · ' : ''}${dbm(w.signal)}` : '');
 
 function fmtBps(b) {
   if (b === null || b === undefined) return '–';
@@ -919,7 +921,7 @@ function drawTree(root) {
     if (small && above(n)) return '';
     if (n.kids) return small ? `${n.on}/${n.cnt}` : `${n.on}/${n.cnt} online`;
     if (d.virtual) return small ? '' : 'ohne IP';
-    if (d.wifi && d.online && !n.kids) return small ? `${d.wifi.signal}` : `${d.wifi.signal} dBm`;
+    if (d.wifi && d.online && !n.kids) return d.wifi.signal == null ? (d.wifi.band ? d.wifi.band + ' GHz' : 'WLAN') : small ? `${d.wifi.signal}` : `${d.wifi.signal} dBm`;
     if (d.kind === 'device' && !d.online) return small ? 'offline' : 'offline ' + since(d.lastSeen);
     if (d.port) return 'Port ' + d.port;
     return d.private && !small ? 'private MAC' : '';
@@ -1367,7 +1369,7 @@ async function openDevice(id) {
   $('#devFacts').innerHTML = fact('IP', `<span class="mono">${esc(d.ip)}</span>`)
     + fact('MAC', `<span class="mono">${esc(d.mac)}</span>${d.private ? ' · private MAC' : ''}`)
     + fact('Hersteller', esc(d.vendor)) + fact('Hostname', esc(d.hostname))
-    + (d.wifi ? fact('WLAN', `${sigBars(d.wifi.signal)} ${d.wifi.signal} dBm <span class="text-body-secondary">(${sigText(d.wifi.signal)})</span>
+    + (d.wifi ? fact('WLAN', `${d.wifi.signal == null ? 'verbunden' : `${sigBars(d.wifi.signal)} ${d.wifi.signal} dBm <span class="text-body-secondary">(${sigText(d.wifi.signal)})</span>`}
         · ${d.wifi.band ? d.wifi.band + ' GHz' : ''} · ${fmtKbps(d.wifi.tx)}<br><span class="text-body-secondary">an</span>
         ${esc(devTitle(devData.devices.find((x) => x.id === d.wifi.apId) || { name: 'AP' }))}${d.wifi.online ? ' <span class="text-body-secondary">· seit ' + fmtDur(d.wifi.online) + '</span>' : ''}`) : '')
     + fact('Erstmals', esc(fmtTime(d.firstSeen, true))) + fact('Zuletzt', esc(fmtTime(d.lastSeen, true)));
@@ -1537,7 +1539,7 @@ function wifiClientList(d) {
       <td>${sigBars(c.signal)}</td>
       <td class="who">${esc(c.name)}${c.location ? `<div class="port-desc">${esc(c.location)}</div>` : ''}${c.id ? '' : '<div class="port-desc">nicht im Scan</div>'}</td>
       <td class="text-nowrap">${c.band ? c.band + ' GHz' : ''}${c.guest ? ' · Gast' : ''}</td>
-      <td class="text-nowrap ${c.signal < -75 ? 'text-danger' : ''}">${c.signal} dBm</td>
+      <td class="text-nowrap ${c.signal < -75 ? 'text-danger' : ''}">${c.signal == null ? '–' : c.signal + ' dBm'}</td>
       <td class="mono text-nowrap text-end">${fmtKbps(c.tx)}<br><span class="text-body-secondary">${fmtDur(c.online)}</span></td></tr>`).join('');
   return `<div class="small-label mb-1">WLAN-Clients · ${list.length}${weak ? ` · <span class="text-danger">${weak} schwach</span>` : ''}</div>
     <table class="port-table wifi-table">${rows}</table>`;

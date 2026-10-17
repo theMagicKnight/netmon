@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1 – 2026-10-17
+
+- TP-Link im Router-Modus (z. B. Archer C80): WLAN-Clients werden jetzt zugeordnet, obwohl der Router kein Signal
+  liefert; Kabel-Geräte und abgemeldete Einträge aus seiner Liste werden ignoriert. Anzeige „WLAN“ statt „null dBm“.
+
 ## 1.3.0 – 2026-10-16
 
 - install.sh `--with-tailscale`: installiert Tailscale, schaltet IP-Weiterleitung ein und bietet das Heimnetz als

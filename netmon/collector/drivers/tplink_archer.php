@@ -66,10 +66,21 @@ final class TplinkArcherDriver extends SwitchDriver
                 continue;
             }
             $type = (string) ($c['type'] ?? '');
+            // Router-Modus (z. B. Archer C80) listet auch Kabel-Geräte und abgemeldete – die gehören nicht zum WLAN
+            if ($type === 'wired' || ($c['active'] ?? true) === false) {
+                continue;
+            }
+            $freq = (string) ($c['frequency'] ?? '');
+            $band = str_contains($type, '6g') || str_starts_with($freq, '6') ? '6'
+                : (str_contains($type, '5g') || str_starts_with($freq, '5') ? '5'
+                : (str_contains($type, '2g') || str_starts_with($freq, '2') ? '2.4' : null));
+            $ip = ($c['ip'] ?? '') !== '0.0.0.0' ? ($c['ip'] ?? null) : null;
             $out[] = [
                 'mac'    => $mac,
-                'ip'     => ($c['ip'] ?? '') !== '0.0.0.0' ? ($c['ip'] ?? null) : null,
-                'band'   => str_contains($type, '6g') ? '6' : (str_contains($type, '5g') ? '5' : (str_contains($type, '2g') ? '2.4' : null)),
+                'ip'     => $ip,
+                'band'   => $band,
+                // angemeldet: mit Signal (AP-Modus) oder als WLAN-Gerät mit IP (Router-Modus liefert kein Signal)
+                'live'   => isset($c['signal']) || ($ip !== null && preg_match('/^(host|guest|iot)_/', $type)),
                 'guest'  => str_contains($type, 'guest'),
                 'signal' => isset($c['signal']) ? (int) $c['signal'] : null,
                 'tx'     => isset($c['tx']) ? (int) $c['tx'] : null,
@@ -95,7 +106,7 @@ final class TplinkArcherDriver extends SwitchDriver
         $pct = fn($v) => $v === null ? null : (int) round((float) $v * ((float) $v <= 1 ? 100 : 1));
         $cpu = $pct($s['cpu_usage'] ?? null);
         $mem = $pct($s['mem_usage'] ?? null);
-        $clients = $this->wifiClients();
+        $clients = array_filter($this->wifiClients(), 'wifi_live');
         $weak = array_filter($clients, fn($c) => $c['signal'] !== null && $c['signal'] < -75);
 
         $nets = [];

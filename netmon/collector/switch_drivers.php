@@ -179,10 +179,10 @@ function switch_poll(PDO $db, array $dev, ?string $pass = null, bool $withInfo =
     }
     if ($wifi !== null) {
         switch_store_wifi($db, (int) $dev['id'], $wifi);
-        $band = fn($b) => count(array_filter($wifi, fn($c) => $c['signal'] !== null && $c['band'] === $b));
+        $band = fn($b) => count(array_filter($wifi, fn($c) => wifi_live($c) && $c['band'] === $b));
         $db->prepare('INSERT IGNORE INTO ap_history (device_id, ts, cpu, mem, clients, c24, c5, weak) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
            ->execute([$dev['id'], date('Y-m-d H:i:00'), $stats['cpu'] ?? null, $stats['mem'] ?? null,
-                      count(array_filter($wifi, fn($c) => $c['signal'] !== null)), $band('2.4'), $band('5') + $band('6'),
+                      count(array_filter($wifi, 'wifi_live')), $band('2.4'), $band('5') + $band('6'),
                       count(array_filter($wifi, fn($c) => $c['signal'] !== null && $c['signal'] < -75))]);
     }
 
@@ -267,7 +267,7 @@ function switch_live(PDO $db, array $dev): array
         }
         $wifi = $d->wifiClients();
         if ($wifi !== null) {
-            $ok = array_values(array_filter($wifi, fn($c) => $c['signal'] !== null));
+            $ok = array_values(array_filter($wifi, 'wifi_live'));
             return ['t' => microtime(true), 'stats' => $d->stats(), 'clients' => count($ok),
                     'c24' => count(array_filter($ok, fn($c) => $c['band'] === '2.4')),
                     'c5' => count(array_filter($ok, fn($c) => $c['band'] === '5' || $c['band'] === '6')),
@@ -345,6 +345,12 @@ function switch_public_pages(string $ip): array
     return $out;
 }
 
+// Ist der Client gerade an diesem AP angemeldet? Signal vorhanden, oder der Treiber meldet es ausdrücklich (live)
+function wifi_live(array $c): bool
+{
+    return ($c['signal'] ?? null) !== null || !empty($c['live']);
+}
+
 // WLAN-Clients eines APs speichern. Veraltete Einträge nach einem AP-Wechsel (ohne Signal/IP) überspringen;
 // ein Client gehört immer zu dem AP, der ihn zuletzt mit Signal gemeldet hat.
 function switch_store_wifi(PDO $db, int $apId, array $clients): void
@@ -357,7 +363,7 @@ function switch_store_wifi(PDO $db, int $apId, array $clients): void
            tx_kbps = VALUES(tx_kbps), rx_kbps = VALUES(rx_kbps), online_s = VALUES(online_s), ip = VALUES(ip), host = VALUES(host), updated = VALUES(updated)'
     );
     foreach ($clients as $c) {
-        if ($c['signal'] === null) {
+        if (!wifi_live($c)) {
             continue;
         }
         $up->execute([$c['mac'], $apId, $c['band'], $c['guest'] ? 1 : 0, $c['signal'], $c['tx'], $c['rx'], $c['online'], $c['ip'], $c['host'] ? mb_substr($c['host'], 0, 64) : null, $now]);

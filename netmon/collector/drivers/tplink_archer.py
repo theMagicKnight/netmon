@@ -31,6 +31,8 @@ def main():
                 "rx": getattr(d, "rx_rate", None),
                 "online": getattr(d, "online_time", None),
                 "host": getattr(d, "hostname", None),
+                "active": getattr(d, "active", True),
+                "frequency": getattr(d, "frequency", None),
             })
         info = {"status": {k: getattr(status, k, None) for k in (
             "cpu_usage", "mem_usage", "wifi_2g_enable", "wifi_5g_enable", "wifi_6g_enable",

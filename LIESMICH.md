@@ -26,63 +26,9 @@ Alles gehört in **einen** Ordner: `netmon/` → `/var/www/html/netmon/`. Sonst 
 sudo bash install.sh --zones sql/zones-beispiel.sql     # Optionen: --subnet, --web, --no-speedtest, --speedtest-every
 ```
 
-### Fernzugriff mit Tailscale
-
-Damit erreichst du von unterwegs netmon **und** alle Geräte im Heimnetz (Router, Switches, Access Points)
-über ihre normale IP – ohne Portfreigabe am Router.
-
-**1. Tailscale-Konto** – einmalig auf <https://login.tailscale.com> anlegen (z. B. mit Google- oder GitHub-Konto).
-Für den Privatgebrauch kostenlos.
-
-**2. Auf dem netmon-Rechner**
-
-```bash
-cd ~/netmon && sudo bash install.sh --with-tailscale
-# anderes Netz als erkannt:  sudo bash install.sh --with-tailscale --subnet 192.168.6.0/24
-```
-
-Beim ersten Mal erscheint ein Link `https://login.tailscale.com/a/…` – im Browser öffnen und bestätigen.
-Am Ende zeigt das Skript die Tailscale-IP des Rechners (100.x.y.z).
-
-**3. Route freigeben (einmalig, kann das Skript nicht)**
-
-<https://login.tailscale.com/admin/machines> → beim Rechner auf **„…“ → Edit route settings** →
-das Heimnetz (z. B. `192.168.5.0/24`) anhaken → **Save**.
-
-**4. Handy / Laptop verbinden**
-
-- Tailscale-App installieren (Android, iPhone, Windows, Mac) und mit **demselben Konto** anmelden.
-- Windows/Mac: im Tailscale-Menü **„Use Tailscale subnets“** anhaken (Android/iPhone: meist automatisch,
-  sonst in den Einstellungen der App).
-- Linux: `sudo tailscale up --accept-routes`
-
-**5. Testen** – am Handy **WLAN aus**, Tailscale **verbunden**:
-
-| Was | Adresse |
-|---|---|
-| netmon | `http://<IP des netmon-Rechners>/netmon/` oder `http://100.x.y.z/netmon/` |
-| Router (FritzBox) | `http://192.168.x.1` bzw. die IP deines Routers |
-| Switch, Access Point | ihre normale IP aus netmon |
-
-**Fehlersuche**
-
-- `tailscale status` auf dem netmon-Rechner – steht er als „online“ drin?
-- Nur die 100.x-Adresse geht, 192.168.x nicht → Schritt 3 (Route nicht freigegeben) oder Schritt 4
-  („Use Tailscale subnets“ aus) prüfen.
-- „ERR_NETWORK_CHANGED“ im Browser: Tailscale verbindet sich gerade neu – kurz warten, neu laden.
-- Firewall auf dem Rechner (`sudo ufw status`): muss Weiterleitung erlauben (bei Mint/Raspberry Pi OS meist aus).
-
-**Mehrere Standorte** (z. B. zu Hause und bei Verwandten, jeweils mit netmon + `--with-tailscale`):
-Die Netze müssen **verschieden** sein, z. B. `192.168.5.x` und `192.168.6.x` – sonst weiß Tailscale nicht,
-welches `192.168.5.10` gemeint ist. Umstellen im Router (FritzBox: *Heimnetz → Netzwerk → Netzwerkeinstellungen →
-IPv4-Einstellungen*), danach in netmon unter Einstellungen das Subnetz anpassen und `install.sh --with-tailscale`
-erneut starten.
-
 ## Aktualisieren
 
-Mit git: `cd ~/netmon && git pull && sudo bash install.sh`.
-
-Von Hand: den Ordner `netmon/` einfach erneut hochladen. Im Paket ist **keine** `config.php` –
+Den Ordner `netmon/` einfach erneut hochladen. Im Paket ist **keine** `config.php` –
 deine Zugangsdaten werden also nie überschrieben. Neue Datenbank-Spalten (z. B. „Raum / Ort“)
 ergänzt netmon beim nächsten Aufruf selbst; wer das lieber von Hand macht: `sql/migrate-v3.sql` bis `sql/migrate-v7.sql`.
 
