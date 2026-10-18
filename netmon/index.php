@@ -46,6 +46,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">  <!-- netmon hat eigenes Dunkel/Hell: Browser sollen nicht selbst umfärben (Samsung Internet) -->
   <meta name="theme-color" content="#14151b">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">

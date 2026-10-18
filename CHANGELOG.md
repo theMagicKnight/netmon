@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.2 – 2026-10-18
+
+- Handy-Browser mit eigenem „Dunkelmodus für Webseiten“ (Samsung Internet): netmon meldet, dass es Hell und Dunkel selbst
+  kann – der Browser färbt nicht mehr um (vorher weiße Balken über den Beschriftungen im Baum)
+
 ## 1.6.1 – 2026-10-18
 
 - Port sperren / freigeben auch bei den Netgear-Plus-Switches mit älterer Oberfläche (GS105E/GS105Ev2, GS108Ev3 …)
