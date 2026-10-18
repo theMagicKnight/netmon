@@ -43,6 +43,7 @@ try {
         'save_room_layout'=> admin() ?? saveRoomLayout(body()),
         'switch_poll'     => admin() ?? switchPoll(body()),
         'switch_cable'    => admin() ?? switchCable(body()),
+        'switch_port'     => admin() ?? switchPortSet(body()),
         'connect'         => admin() ?? connectDevices(body()),
         'dismiss_suggestion' => admin() ?? dismissSuggestion(body()),
         'switch_drivers'  => admin() ?? switchDriverList(),
@@ -263,13 +264,13 @@ function switchPorts(): array
 {
     $out = [];
     try {
-        $rows = db()->query('SELECT device_id, port, link, speed, descr, rx_bps, tx_bps, crc, updated, cable_result, cable_dist, cable_at FROM switch_ports ORDER BY device_id, port')->fetchAll();
+        $rows = db()->query('SELECT device_id, port, link, admin_off, speed, descr, rx_bps, tx_bps, crc, updated, cable_result, cable_dist, cable_at FROM switch_ports ORDER BY device_id, port')->fetchAll();
     } catch (PDOException $e) {
         return [];
     }
     foreach ($rows as $r) {
         $out[(int) $r['device_id']][] = [
-            'p' => (int) $r['port'], 'link' => (bool) $r['link'], 'speed' => $r['speed'],
+            'p' => (int) $r['port'], 'link' => (bool) $r['link'], 'off' => (bool) ($r['admin_off'] ?? 0), 'speed' => $r['speed'],
             'rx' => $r['rx_bps'] !== null ? (int) $r['rx_bps'] : null, 'tx' => $r['tx_bps'] !== null ? (int) $r['tx_bps'] : null,
             'crc' => $r['crc'] !== null ? (int) $r['crc'] : null, 'updated' => $r['updated'], 'desc' => $r['descr'],
             'cable' => $r['cable_result'] !== null ? ['result' => $r['cable_result'], 'dist' => $r['cable_dist'], 'at' => $r['cable_at']] : null,
@@ -634,6 +635,33 @@ function switchPoll(array $in): array
     $n = (int) $st->fetchColumn();
     $clients = $driver === 'tplink_archer' || (!$ports && $n) ? $n : null;
     return ['ok' => true, 'driver' => $driver, 'ports' => count($ports), 'up' => count(array_filter($ports, fn($p) => $p['link'])), 'clients' => $clients];
+}
+
+// Port sperren / freigeben (Gerät daran ist vom Netz getrennt; Uplink nie)
+function switchPortSet(array $in): array
+{
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $dev = switchDevice((int) ($in['id'] ?? 0));
+    $port = (int) ($in['port'] ?? 0);
+    $on = !empty($in['on']);
+    if ($port < 1 || $port > 52) {
+        throw new InvalidArgumentException('Ungültiger Port');
+    }
+    if (!$on && $dev['sw_uplink'] !== null && (int) $dev['sw_uplink'] === $port) {
+        throw new InvalidArgumentException('Der Uplink-Port wird nicht abgeschaltet – sonst wäre der Switch nicht mehr erreichbar');
+    }
+    if (!$dev['sw_pass'] || !$dev['sw_driver']) {
+        throw new InvalidArgumentException('Erst Treiber und Passwort einrichten');
+    }
+    if (!switch_can_portoff(switch_driver_class($dev['sw_driver']))) {
+        throw new InvalidArgumentException('Dieser Switch kann Ports nicht abschalten');
+    }
+    try {
+        switch_port_enable(db(), $dev, $port, $on);
+    } catch (RuntimeException $e) {
+        throw new InvalidArgumentException($e->getMessage());
+    }
+    return ['ok' => true];
 }
 
 // Kabeltest an einem Port (der Port ist dabei kurz ohne Link)

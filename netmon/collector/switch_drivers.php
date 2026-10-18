@@ -63,6 +63,8 @@ abstract class SwitchDriver
     // Messwerte für Verlauf/Live (Router: DSL, Internet-Rate …): [schlüssel => zahl] – null = keine
     public function metrics(): ?array { return null; }
     public function cableTest(int $port): array { throw new RuntimeException('Dieser Switch kann keinen Kabeltest'); }
+    // Port per Software ab-/einschalten (Gerät daran ist dann vom Netz getrennt)
+    public function setPortEnabled(int $port, bool $on): void { throw new RuntimeException('Dieser Switch kann Ports nicht abschalten'); }
     // LEDs an der Front ein-/ausschalten (Ports arbeiten normal weiter)
     public function setLeds(bool $on): void { throw new RuntimeException('Dieses Gerät kann die LEDs nicht schalten'); }
     // [seite => inhalt] für das Analyse-Paket
@@ -137,7 +139,7 @@ function switch_driver_list(): array
         $cls = switch_driver_class($k);
         $out[] = ['key' => $k, 'label' => $cls::LABEL, 'hint' => trim($cls::HINT, '/i'), 'user' => $cls::NEEDS_USER, 'pass' => $cls::NEEDS_PASS,
                   'cable' => (new ReflectionMethod($cls, 'cableTest'))->getDeclaringClass()->getName() === $cls,
-                  'leds'  => switch_can_leds($cls)];
+                  'leds'  => switch_can_leds($cls), 'portoff' => switch_can_portoff($cls)];
     }
     return $out;
 }
@@ -145,6 +147,24 @@ function switch_driver_list(): array
 function switch_can_leds(string $cls): bool
 {
     return (new ReflectionMethod($cls, 'setLeds'))->getDeclaringClass()->getName() !== SwitchDriver::class;
+}
+
+function switch_can_portoff(string $cls): bool
+{
+    return (new ReflectionMethod($cls, 'setPortEnabled'))->getDeclaringClass()->getName() !== SwitchDriver::class;
+}
+
+// Port schalten und sofort neu abfragen (Status in der Datenbank aktuell)
+function switch_port_enable(PDO $db, array $dev, int $port, bool $on): void
+{
+    switch_locked($db, (int) $dev['id'], 20, fn() => switch_open($dev)->session(fn(SwitchDriver $d) => $d->setPortEnabled($port, $on)));
+    $db->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, NOW())")
+       ->execute([$dev['id'], "Port $port " . ($on ? 'freigegeben' : 'gesperrt')]);
+    try {
+        switch_poll($db, $dev);
+    } catch (Throwable $e) {
+        // Abfrage klappt beim nächsten Takt
+    }
 }
 
 // LEDs eines Geräts schalten (mit Sperre, damit sich Cron und Oberfläche nicht in die Quere kommen)
@@ -207,9 +227,9 @@ function switch_poll(PDO $db, array $dev, ?string $pass = null, bool $withInfo =
         return $d === null ? null : (int) round($d * 8 / $dt);
     };
     $up = $db->prepare(
-        'INSERT INTO switch_ports (device_id, port, link, speed, descr, rx_bytes, tx_bytes, crc, rx_bps, tx_bps, updated)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))
-         ON DUPLICATE KEY UPDATE link = VALUES(link), speed = VALUES(speed), descr = VALUES(descr), rx_bytes = VALUES(rx_bytes),
+        'INSERT INTO switch_ports (device_id, port, link, admin_off, speed, descr, rx_bytes, tx_bytes, crc, rx_bps, tx_bps, updated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))
+         ON DUPLICATE KEY UPDATE link = VALUES(link), admin_off = VALUES(admin_off), speed = VALUES(speed), descr = VALUES(descr), rx_bytes = VALUES(rx_bytes),
                                  tx_bytes = VALUES(tx_bytes), crc = VALUES(crc), rx_bps = VALUES(rx_bps), tx_bps = VALUES(tx_bps), updated = VALUES(updated)'
     );
     $evt = $db->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, FROM_UNIXTIME(?))");
@@ -225,7 +245,7 @@ function switch_poll(PDO $db, array $dev, ?string $pass = null, bool $withInfo =
                 $evt->execute([$dev['id'], "Port $p: {$x['speed']} statt {$o['speed']}", $now]);
             }
         }
-        $up->execute([$dev['id'], $p, $x['link'] ? 1 : 0, $x['speed'], $x['desc'] ?? null, $x['rx'], $x['tx'], $x['crc'],
+        $up->execute([$dev['id'], $p, $x['link'] ? 1 : 0, !empty($x['off']) ? 1 : 0, $x['speed'], $x['desc'] ?? null, $x['rx'], $x['tx'], $x['crc'],
                       $ports[$p]['rx_bps'], $ports[$p]['tx_bps'], $now]);
     }
     // Verlauf je Minute (nur Ports mit Link und berechneter Rate)

@@ -50,8 +50,8 @@ const speedClass = (s) => {
   const v = speedMbps(s);
   return v == null ? '' : v > 1000 ? 'sp-x' : v >= 1000 ? 'sp-1000' : v >= 100 ? 'sp-100' : 'sp-10';
 };
-const portClass = (p) => (!p.link ? 'off' : (parseInt(p.speed, 10) >= 1000 ? 'on ' : 'slow ') + speedClass(p.speed));
-const portTitle = (p) => `Port ${p.p}: ${p.link ? 'Link ' + (p.speed || '') : 'kein Link'}`;
+const portClass = (p) => (p.off ? 'off locked' : !p.link ? 'off' : (parseInt(p.speed, 10) >= 1000 ? 'on ' : 'slow ') + speedClass(p.speed));
+const portTitle = (p) => `Port ${p.p}: ${p.off ? 'gesperrt' : p.link ? 'Link ' + (p.speed || '') : 'kein Link'}`;
 const portStrip = (ports, uplink) => (ports ? `<span class="port-strip">${ports.map((p) =>
   `<i class="${portClass(p)}${p.p === uplink ? ' up' : ''}" title="${esc(portTitle(p) + (p.p === uplink ? ' · Uplink' : ''))}"></i>`).join('')}</span>` : '');
 // WLAN: Signalstärke in Worten und als Balken, Raten in kbit/s
@@ -1466,6 +1466,7 @@ $('#devTabs').addEventListener('click', (e) => {
   if (b) devTab(b.dataset.dtab);
 });
 
+const PORT_OFF = ['netgear_plus2'];   // Treiber, die Ports per Software abschalten können
 const NO_CABLE = ['avm_fritzbox', 'telekom_speedport', 'tplink_archer', 'tplink_easy', 'netgear_jgs', 'netgear_gs316'];   // Treiber ohne Kabeltest
 // Port-Tabelle im Gerätedialog (für alle sichtbar, sobald der Switch abgefragt wird)
 function renderPorts(d) {
@@ -1516,9 +1517,12 @@ function renderPorts(d) {
     const desc = p.desc && (devs.length || p.p === d.uplink) ? `<div class="port-desc">„${esc(p.desc)}“</div>` : '';
     const sb = standby(p) ? '<div class="port-desc">Gerät aus – Netzwerkkarte im Standby, daher 10M</div>' : '';
     const cab = p.cable ? `<div class="port-cable ${/ok|normal/i.test(p.cable.result) ? 'ok' : 'bad'}">Kabel: ${esc(p.cable.result)}${p.cable.dist && p.cable.dist !== '0' ? ' · ' + esc(p.cable.dist) + ' m' : ''} · ${esc(fmtTime(p.cable.at))}</div>` : '';
-    const test = IS_ADMIN && d.swPass && canCable && p.p !== d.uplink ? `<button type="button" class="btn btn-link btn-sm p-0 port-test" data-cable="${p.p}">Kabel testen</button>` : '';
-    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who">${who}${desc}${sb}${cab}${test}</td>
-      <td class="text-nowrap">${p.link ? esc(p.speed || 'Link') : '<span class="text-body-secondary">kein Link</span>'}</td>
+    const test = IS_ADMIN && d.swPass && canCable && p.p !== d.uplink && !p.off ? `<button type="button" class="btn btn-link btn-sm p-0 port-test" data-cable="${p.p}">Kabel testen</button>` : '';
+    const lock = IS_ADMIN && d.swPass && PORT_OFF.includes(d.driver) && p.p !== d.uplink
+      ? `<button type="button" class="btn btn-link btn-sm p-0 port-test ms-2${p.off ? '' : ' text-danger'}" data-portoff="${p.p}" data-on="${p.off ? 1 : 0}">${p.off ? 'Port freigeben' : 'Port sperren'}</button>` : '';
+    const offTxt = p.off ? '<div class="port-desc text-danger">gesperrt – per Software abgeschaltet</div>' : '';
+    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who">${who}${desc}${offTxt}${sb}${cab}${test}${lock}</td>
+      <td class="text-nowrap">${p.off ? '<span class="text-danger">gesperrt</span>' : p.link ? esc(p.speed || 'Link') : '<span class="text-body-secondary">kein Link</span>'}</td>
       <td class="mono text-nowrap text-end">${p.link && p.rx != null ? `↓ ${fmtBps(p.rx)}<br>↑ ${fmtBps(p.tx)}` : ''}</td></tr>`;
   }).join('');
   const t = d.ports[0]?.updated;
@@ -2079,6 +2083,29 @@ $('#swPoll')?.addEventListener('click', async () => {
     $('#devError').textContent = err.message;
   } finally {
     btn.disabled = false;
+  }
+});
+// Port sperren / freigeben
+$('#devPorts').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-portoff]');
+  if (!b || !currentDev) return;
+  const port = Number(b.dataset.portoff);
+  const on = b.dataset.on === '1';
+  const who = (currentDev.onPort[port] || []).join(', ');
+  if (!on && !confirm(`Port ${port}${who ? ' (' + who + ')' : ''} sperren?\n\nAlles an diesem Port ist dann vom Netz getrennt, bis du ihn wieder freigibst.`)) return;
+  b.disabled = true;
+  b.textContent = on ? 'gebe frei …' : 'sperre …';
+  try {
+    await post('switch_port', { id: currentDev.id, port, on: on ? 1 : 0 });
+    notify(`Port ${port} ${on ? 'freigegeben' : 'gesperrt'}`);
+    await loadDevices();
+    currentDev = devData.devices.find((x) => x.id === currentDev.id) || currentDev;
+    renderPorts(currentDev);
+    if (treeData) loadTree();
+  } catch (err) {
+    $('#devError').textContent = err.message;
+    b.disabled = false;
+    b.textContent = on ? 'Port freigeben' : 'Port sperren';
   }
 });
 $('#devPorts').addEventListener('click', async (e) => {

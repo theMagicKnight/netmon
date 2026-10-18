@@ -91,7 +91,9 @@ final class NetgearPlus2Driver extends NetgearPlusDriver
             if ($desc === null && preg_match('#index_li_title.*?<span[^>]*>\s*\d{1,2}\s*-\s*([^<]+?)\s*</span>#is', $b, $tm)) {
                 $desc = trim(html_entity_decode($tm[1], ENT_QUOTES));
             }
-            $ports[$p] = ['link' => $link, 'speed' => $link ? $speed : null, 'desc' => $desc !== '' ? $desc : null, 'rx' => null, 'tx' => null, 'crc' => null];
+            // Tempo-Einstellung 2 = „Disable“: Port per Software abgeschaltet
+            $ports[$p] = ['link' => $link, 'off' => $hid($b, 'Speed') === '2', 'speed' => $link ? $speed : null,
+                          'desc' => $desc !== '' ? $desc : null, 'rx' => null, 'tx' => null, 'crc' => null];
             if (count($ports) >= 52) {
                 break;
             }
@@ -172,6 +174,42 @@ final class NetgearPlus2Driver extends NetgearPlusDriver
         if ($r !== 'SUCCESS') {
             throw new RuntimeException($r === 'CHECK HASH FAILED' ? 'Switch hat das Schalten abgelehnt (Sitzung abgelaufen)'
                 : 'LEDs schalten fehlgeschlagen (Antwort: ' . mb_substr(strip_tags($r), 0, 60) . ')');
+        }
+    }
+
+    // Port ab-/einschalten: dieselbe Seite wie „Bearbeiten“ in der Oberfläche (port_status.cgi). Mitgeschickt werden
+    // die übrigen Einstellungen des Ports unverändert (Name, Flusssteuerung, Bandbreite, Priorität), nur SPEED wechselt:
+    // 1 = Auto, 2 = Disable (4 = 10M voll, 6 = 100M voll)
+    public function setPortEnabled(int $port, bool $on): void
+    {
+        $html = $this->dash();
+        $pd = stristr($html, 'port_details') ?: $html;
+        $hid = fn(string $b, string $class) => preg_match('#<input[^>]*class=["\']' . $class . '["\'][^>]*value=["\']([^"\']*)#i', $b, $m)
+            || preg_match('#<input[^>]*value=["\']([^"\']*)["\'][^>]*class=["\']' . $class . '["\']#i', $b, $m) ? html_entity_decode($m[1], ENT_QUOTES) : null;
+        $blk = null;
+        foreach (self::blocks($pd, 'list_item') as $i => $b) {
+            $num = $hid($b, 'port');
+            if (($num !== null && ctype_digit($num) ? (int) $num : $i + 1) === $port) {
+                $blk = $b;
+                break;
+            }
+        }
+        if ($blk === null || $hid($blk, 'Speed') === null) {
+            throw new SwitchParseError("Einstellungen von Port $port nicht gefunden – bitte Analyse-Paket schicken");
+        }
+        $hash = preg_match('#id=["\']hash["\'][^>]*value=["\']?(\w+)#i', $html, $m) || preg_match('#name=["\']hash["\'][^>]*value=["\']?(\w+)#i', $html, $m) ? $m[1] : '';
+        $cur = $hid($blk, 'Speed');
+        $speed = $on ? ($cur === '2' ? 1 : (int) $cur) : 2;   // beim Einschalten eine feste Einstellung (10M/100M) behalten
+        $r = trim($this->get('port_status.cgi', [
+            'hash' => $hash, "port$port" => 'checked', 'SPEED' => $speed,
+            'FLOW_CONTROL' => $hid($blk, 'flowCtr') ?? 2, 'DESCRIPTION' => $hid($blk, 'portName') ?? '',
+            'IngressRate' => $hid($blk, 'ingressRate') ?? 1, 'EgressRate' => $hid($blk, 'egressRate') ?? 1,
+            'priority' => $hid($blk, 'priority') ?? 0,
+        ]));
+        $this->dash = null;   // Status neu lesen
+        if ($r !== 'SUCCESS') {
+            throw new RuntimeException($r === 'CHECK HASH FAILED' ? 'Switch hat das Schalten abgelehnt (Sitzung abgelaufen)'
+                : 'Port schalten fehlgeschlagen (Antwort: ' . mb_substr(strip_tags($r), 0, 60) . ')');
         }
     }
 

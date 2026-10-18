@@ -136,6 +136,17 @@ Name des anderen Switches). netmon schlägt die Verbindungen dann im Gerätedial
 - Damit sich Cron und Live-Ansicht nicht gegenseitig abmelden, meldet sich netmon je Gerät immer nur einmal
   gleichzeitig an (Sperre über MariaDB `GET_LOCK`).
 
+## Port sperren (Netgear GS308Ev4 / GS108Ev4)
+
+Im Gerätedialog des Switches steht in der Port-Liste „Port sperren“ bzw. „Port freigeben“. Alles an dem Port ist dann
+vom Netz getrennt (z. B. ein eigener Access Point fürs Kinderzimmer). Zu festen Zeiten per Cron, z. B. in
+`/etc/cron.d/netmon-kinder`:
+
+```
+0 20 * * 1-5  root  /usr/bin/php /var/www/html/netmon/collector/port.php aus 192.168.2.10 7
+0 14 * * 1-5  root  /usr/bin/php /var/www/html/netmon/collector/port.php an  192.168.2.10 7
+```
+
 ## Speedport (Treiber „Telekom Speedport“)
 
 Kein Passwort nötig: In netmon den Speedport öffnen → Einstellungen → Typ „Router“, Treiber „Telekom Speedport“

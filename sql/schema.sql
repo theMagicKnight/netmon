@@ -117,6 +117,7 @@ CREATE TABLE switch_ports (
   device_id   INT UNSIGNED NOT NULL,
   port        TINYINT UNSIGNED NOT NULL,
   link        TINYINT(1) NOT NULL DEFAULT 0,
+  admin_off   TINYINT(1) NOT NULL DEFAULT 0,       -- Port per Software abgeschaltet
   speed       VARCHAR(16) NULL,                -- z. B. 1000M, 100M
   descr       VARCHAR(32) NULL,                -- Port-Beschreibung aus dem Switch
   rx_bytes    BIGINT UNSIGNED NULL,            -- Zählerstand vom Switch

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 – 2026-10-18
+
+- **Port sperren / freigeben** (Netgear GS308Ev4 / GS108Ev4): Knopf in der Port-Liste des Switches, der Port wird per
+  Software abgeschaltet (Einstellung „Disable“, Name und übrige Port-Einstellungen bleiben). Gesperrte Ports sind rot
+  umrandet, jede Änderung steht unter Ereignisse. Der Uplink-Port lässt sich nicht sperren.
+- Für Zeitpläne per Cron: `php /var/www/html/netmon/collector/port.php aus|an <Switch-IP> <Port>`
+- Datenbank Version 10 (Spalte `switch_ports.admin_off`, ergänzt netmon selbst)
+
 ## 1.5.0 – 2026-10-18
 
 - FritzBox-Treiber kann jetzt auch **FRITZ!Repeater**: als Access Point eintragen, WLAN-Clients mit Signal und Band;

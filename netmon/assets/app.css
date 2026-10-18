@@ -558,3 +558,9 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 .legend .sp { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: .25rem; }
 /* Tempo unbekannt (WLAN, Bereich, Gerät ohne Port-Abfrage): neutral, damit Grün eindeutig 1 Gbit/s heißt */
 #tree .flow:not([class*="sp-"]), .room-links .flow:not([class*="sp-"]) { stroke: color-mix(in srgb, var(--bs-body-color) 45%, transparent); }
+
+/* Port per Software gesperrt */
+.port-sq.locked { background: transparent; color: var(--nm-offline); box-shadow: inset 0 0 0 1.5px var(--nm-offline); }
+.port-strip i.locked { background: transparent; box-shadow: inset 0 0 0 1.5px var(--nm-offline); }
+.rj.locked .rj-jack { outline: 1.5px solid var(--nm-offline); outline-offset: 1px; }
+.rj.locked .led, .rj.locked .led2 { background: transparent; box-shadow: none; animation: none; }

@@ -33,7 +33,7 @@ function netmon_pdo(array $cfg): PDO
 }
 
 // Datenbank automatisch auf den aktuellen Stand bringen (neue Spalten), einmal pro Version
-const NETMON_SCHEMA = 9;
+const NETMON_SCHEMA = 10;
 
 function netmon_upgrade(PDO $db): void
 {
@@ -105,6 +105,10 @@ function netmon_upgrade(PDO $db): void
             device_id INT UNSIGNED NOT NULL, k VARCHAR(16) NOT NULL, ts DATETIME NOT NULL, v DOUBLE NULL,
             PRIMARY KEY (device_id, k, ts), INDEX idx_ts (ts),
             CONSTRAINT fk_dm_dev FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE) ENGINE=InnoDB');
+    }
+    // Version 10: Port per Software abgeschaltet (Switch-Einstellung „Disable“)
+    if ($v < 10 && !$db->query("SHOW COLUMNS FROM switch_ports LIKE 'admin_off'")->fetch()) {
+        $db->exec('ALTER TABLE switch_ports ADD COLUMN admin_off TINYINT(1) NOT NULL DEFAULT 0 AFTER link');
     }
     netmon_set($db, 'schema_version', NETMON_SCHEMA);
 }
