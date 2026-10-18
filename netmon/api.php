@@ -631,7 +631,8 @@ function switchPoll(array $in): array
        ->execute([$driver, $pass !== '' ? mb_substr($pass, 0, 64) : null, $user !== '' ? $dev['sw_user'] : null, $dev['id']]);
     $st = db()->prepare('SELECT COUNT(*) FROM wifi_clients WHERE ap_id = ?');
     $st->execute([$dev['id']]);
-    $clients = $driver === 'tplink_archer' ? (int) $st->fetchColumn() : null;
+    $n = (int) $st->fetchColumn();
+    $clients = $driver === 'tplink_archer' || (!$ports && $n) ? $n : null;
     return ['ok' => true, 'driver' => $driver, 'ports' => count($ports), 'up' => count(array_filter($ports, fn($p) => $p['link'])), 'clients' => $clients];
 }
 

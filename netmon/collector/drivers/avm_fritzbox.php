@@ -11,13 +11,14 @@ if (PHP_SAPI !== 'cli' && count(get_included_files()) === 1) { http_response_cod
 
 final class FritzBoxDriver extends SwitchDriver
 {
-    public const LABEL = 'AVM FRITZ!Box (TR-064: DSL, Internet, LAN-Ports)';
+    public const LABEL = 'AVM FRITZ!Box / Repeater (TR-064: DSL, Internet, LAN-Ports, WLAN-Clients)';
     public const HINT  = '/fritz|avm/i';
     public const NEEDS_USER = true;
 
     private const NS = 'urn:dslforum-org:service:';
     private ?array $hosts = null;
     private ?array $m = null;
+    private string $model = '';
 
     public static function detect(string $ip): bool
     {
@@ -27,10 +28,23 @@ final class FritzBoxDriver extends SwitchDriver
 
     protected function login(): void
     {
+        // Anmeldung nur mit Kennwort (typisch bei Repeatern): intern gibt es trotzdem einen Benutzer (z. B. „fritz1234“),
+        // den die Liste der Benutzer ohne Anmeldung verrät; sonst leer versuchen
         if ($this->user === '') {
-            throw new RuntimeException('Für die FritzBox bitte auch den Benutzernamen eintragen (FRITZ!Box-Benutzer mit Recht „FRITZ!Box Einstellungen“)');
+            $list = $this->try(fn() => $this->soap("http://{$this->ip}:49000/upnp/control/lanconfigsecurity",
+                self::NS . 'LANConfigSecurity:1', 'X_AVM-DE_GetUserList', [], false));
+            $xml = html_entity_decode((string) ($list['X_AVM-DE_UserList'] ?? ''), ENT_QUOTES | ENT_XML1);
+            if (preg_match('#<Username[^>]*last_user="1"[^>]*>([^<]+)#', $xml, $u) || preg_match('#<Username[^>]*>([^<]+)#', $xml, $u)) {
+                $this->user = trim($u[1]);
+            }
         }
-        $this->tr('deviceinfo', 'DeviceInfo:1', 'GetInfo');   // prüft gleich die Anmeldung
+        $info = $this->tr('deviceinfo', 'DeviceInfo:1', 'GetInfo');   // prüft gleich die Anmeldung
+        $this->model = (string) ($info['ModelName'] ?? '');
+    }
+
+    private function isRepeater(): bool
+    {
+        return stripos($this->model, 'repeater') !== false;
     }
 
     protected function logout(): void
@@ -126,6 +140,9 @@ final class FritzBoxDriver extends SwitchDriver
     // LAN-Buchsen aus der Heimnetz-Liste: Link, wenn dort ein aktives Gerät hängt. Datenraten je Port liefert TR-064 nicht.
     public function ports(): array
     {
+        if ($this->isRepeater()) {
+            return [];   // Repeater: als Access Point führen, keine Port-Ansicht
+        }
         $ports = [];
         for ($p = 1; $p <= 4; $p++) {
             $ports[$p] = ['link' => false, 'speed' => null, 'desc' => null, 'rx' => null, 'tx' => null, 'crc' => null];
@@ -152,6 +169,9 @@ final class FritzBoxDriver extends SwitchDriver
         if ($this->m !== null) {
             return $this->m;
         }
+        if ($this->isRepeater()) {
+            return $this->m = [];
+        }
         $m = [];
         $igd = $this->try(fn() => $this->soap("http://{$this->ip}:49000/igdupnp/control/WANCommonIFC1",
             'urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1', 'GetAddonInfos', [], false));
@@ -176,6 +196,42 @@ final class FritzBoxDriver extends SwitchDriver
             $m['fec_total'] = isset($st['FECErrors']) ? (int) $st['FECErrors'] : null;
         }
         return $this->m = $m;
+    }
+
+    // WLAN-Clients aus allen Funknetzen (WLANConfiguration 1–4). Signal liefert AVM in Prozent – grob in dBm umgerechnet.
+    public function wifiClients(): ?array
+    {
+        $out = [];
+        $any = false;
+        for ($i = 1; $i <= 4; $i++) {
+            $info = $this->try(fn() => $this->tr("wlanconfig$i", "WLANConfiguration:$i", 'GetInfo'));
+            if ($info === null) {
+                continue;
+            }
+            $any = true;
+            if (($info['Enable'] ?? '1') !== '1') {
+                continue;
+            }
+            $fb = (string) ($info['X_AVM-DE_FrequencyBand'] ?? '');
+            $band = str_starts_with($fb, '6') ? '6' : (str_starts_with($fb, '5') ? '5' : (str_starts_with($fb, '2') ? '2.4' : ($i === 2 ? '5' : '2.4')));
+            $n = (int) ($this->try(fn() => $this->tr("wlanconfig$i", "WLANConfiguration:$i", 'GetTotalAssociations'))['TotalAssociations'] ?? 0);
+            for ($k = 0; $k < min($n, 100); $k++) {
+                $d = $this->try(fn() => $this->tr("wlanconfig$i", "WLANConfiguration:$i", 'GetGenericAssociatedDeviceInfo', ['NewAssociatedDeviceIndex' => $k]));
+                $mac = strtoupper((string) ($d['AssociatedDeviceMACAddress'] ?? ''));
+                if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/', $mac)) {
+                    continue;
+                }
+                $pct = isset($d['X_AVM-DE_SignalStrength']) ? (int) $d['X_AVM-DE_SignalStrength'] : null;
+                $speed = isset($d['X_AVM-DE_Speed']) ? (int) $d['X_AVM-DE_Speed'] * 1000 : null;   // Mbit/s -> kbit/s
+                $out[] = [
+                    'mac' => $mac, 'ip' => ($d['AssociatedDeviceIPAddress'] ?? '') !== '' ? $d['AssociatedDeviceIPAddress'] : null,
+                    'band' => $band, 'guest' => false,
+                    'signal' => $pct !== null && $pct > 0 ? (int) round($pct / 2 - 100) : null, 'live' => true,
+                    'tx' => $speed, 'rx' => $speed, 'online' => null, 'host' => null,
+                ];
+            }
+        }
+        return $any ? $out : null;
     }
 
     public function info(): array
@@ -207,7 +263,7 @@ final class FritzBoxDriver extends SwitchDriver
                 ? ['info', number_format($m['crc_total'], 0, ',', '.') . ' CRC-Fehler seit der letzten Synchronisation']
                 : ['ok', 'Keine CRC-Fehler seit der letzten Synchronisation'];
         }
-        if (!isset($m['wan_rx'])) {
+        if (!isset($m['wan_rx']) && isset($m['dsl_ok'])) {
             $checks[] = ['info', 'Internet-Rate fehlt – in der FritzBox „Statusinformationen über UPnP übertragen“ einschalten'];
         }
         if (($wan['ConnectionStatus'] ?? '') !== '') {
@@ -217,8 +273,12 @@ final class FritzBoxDriver extends SwitchDriver
                     . (($wan['ExternalIPAddress'] ?? '') !== '' ? ' · IP ' . $wan['ExternalIPAddress'] : '')]
                 : ['warn', 'Internet: ' . $wan['ConnectionStatus']];
         }
+        $wc = $this->wifiClients();
+        if ($wc !== null) {
+            $checks[] = ['ok', count($wc) . ' WLAN-Clients angemeldet' . ($this->isRepeater() ? ' (Repeater)' : '')];
+        }
         $lan = [];
-        foreach ($this->try(fn() => $this->hosts()) ?? [] as $h) {
+        foreach ($this->isRepeater() ? [] : ($this->try(fn() => $this->hosts()) ?? []) as $h) {
             if ($h['active'] && $h['iface'] === 'Ethernet' && $h['port'] > 0) {
                 $lan[$h['port']][] = $h['mac'];
             }

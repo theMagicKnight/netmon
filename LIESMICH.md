@@ -177,6 +177,7 @@ dann enthält das **Analyse-Paket** alle Seiten mit Anmeldung, damit der Treiber
 | TP-Link Easy Smart | TL-SG105E, TL-SG108E, TL-SG116E, TL-SG1016PE … (Benutzer meist „admin“) | Entwurf, ungetestet – nur Link/Tempo, keine Datenrate (Switch liefert nur Paketzähler) |
 | TP-Link Archer / Deco | Archer AX55 Pro u. a. (über tplinkrouterc6u) | im Einsatz |
 | AVM FRITZ!Box | 7590 u. a. (TR-064) | im Einsatz |
+| AVM FRITZ!Repeater | als Access Point, WLAN-Clients (TR-064) | neu |
 | Telekom Speedport | Smart 3, Smart 4, Smart 4R (ohne Passwort) | im Einsatz (Smart 4R) |
 
 „Gegen Beispielseiten getestet“ heißt: Anmeldung und Seitenaufbau stammen aus dem Projekt

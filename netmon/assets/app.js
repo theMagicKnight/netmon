@@ -1572,7 +1572,7 @@ const GR_LIVE_MAX = 10 * 60 * 1000;              // nach 10 Minuten automatisch 
 const GR_C = { rx: COLORS.down, tx: COLORS.up, cpu: COLORS.up, mem: COLORS.ping, c24: COLORS.ping, c5: COLORS.down,
   wan_rx: COLORS.down, wan_tx: COLORS.up, dsl_down: COLORS.down, dsl_up: COLORS.up, snr_down: COLORS.down, snr_up: COLORS.up, crc: COLORS.ping };
 const ROUTER_DRV = ['avm_fritzbox', 'telekom_speedport'];   // Router mit DSL-Werten: Grafik „Internet & DSL“
-const grKind = (d) => (ROUTER_DRV.includes(d?.driver) ? 'fb' : d?.ports ? 'sw' : 'ap');
+const grKind = (d) => (ROUTER_DRV.includes(d?.driver) && d?.type !== 'ap' ? 'fb' : d?.ports ? 'sw' : 'ap');
 // Router-Messwerte: Fehlerzähler in „je Minute“ umrechnen (Rückgang = neu synchronisiert -> Lücke)
 function grCrc(list) {
   let prev = null;
@@ -1587,7 +1587,7 @@ function grCrc(list) {
 
 function graphInit(d) {
   graphStop();
-  const has = !!(d && (d.ports || d.wifiClients || d.driver === 'tplink_archer' || (ROUTER_DRV.includes(d.driver) && d.swPass)));
+  const has = !!(d && (d.ports || d.wifiClients || d.driver === 'tplink_archer' || (ROUTER_DRV.includes(d.driver) && d.swPass) || (d.type === 'ap' && d.swPass)));
   GR.dev = has ? d : null;
   GR.hist = null; GR.hist1h = null; GR.samples = []; GR.paused = false; GR.msg = ''; GR.hoverT = null;
   GR.range = d?.swPass ? store.get('netmon-graph-range') || '1h' : '1h';

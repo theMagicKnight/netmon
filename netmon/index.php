@@ -442,7 +442,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
             <div class="mb-2 d-none" id="swUserRow">
               <label class="form-label small text-body-secondary mb-1" for="fSwUser">Benutzer</label>
               <input class="form-control" id="fSwUser" name="swUser" maxlength="32" autocomplete="off" placeholder="z. B. netmon">
-              <div class="form-text">Eigener FRITZ!Box-Benutzer mit dem Recht „FRITZ!Box Einstellungen“.</div>
+              <div class="form-text">Eigener FRITZ!Box-Benutzer mit dem Recht „FRITZ!Box Einstellungen“. Repeater mit Anmeldung nur per Kennwort: leer lassen.</div>
             </div>
             <div class="row g-2">
               <div class="col-7" id="swPassCol">

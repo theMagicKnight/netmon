@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 – 2026-10-18
+
+- FritzBox-Treiber kann jetzt auch **FRITZ!Repeater**: als Access Point eintragen, WLAN-Clients mit Signal und Band;
+  Anmeldung nur mit Kennwort möglich (Benutzer leer lassen – netmon ermittelt den internen Benutzer selbst)
+- FritzBox mit eigenem WLAN: deren WLAN-Clients erscheinen ebenfalls (Knoten „WLAN“ unter dem Router)
+
 ## 1.4.2 – 2026-10-17
 
 - Baum: Geräte im WLAN des Routers (Speedport, FritzBox) hängen an einem eigenen Knoten „WLAN“ unter dem Router –
