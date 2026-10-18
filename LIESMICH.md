@@ -136,7 +136,7 @@ Name des anderen Switches). netmon schlägt die Verbindungen dann im Gerätedial
 - Damit sich Cron und Live-Ansicht nicht gegenseitig abmelden, meldet sich netmon je Gerät immer nur einmal
   gleichzeitig an (Sperre über MariaDB `GET_LOCK`).
 
-## Port sperren (Netgear GS308Ev4 / GS108Ev4)
+## Port sperren (Netgear GS308Ev4 / GS108Ev4, GS105E / GS105Ev2 / GS108Ev3)
 
 Im Gerätedialog des Switches steht in der Port-Liste „Port sperren“ bzw. „Port freigeben“. Alles an dem Port ist dann
 vom Netz getrennt (z. B. ein eigener Access Point fürs Kinderzimmer). Zu festen Zeiten per Cron, z. B. in

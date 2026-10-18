@@ -1466,7 +1466,7 @@ $('#devTabs').addEventListener('click', (e) => {
   if (b) devTab(b.dataset.dtab);
 });
 
-const PORT_OFF = ['netgear_plus2'];   // Treiber, die Ports per Software abschalten können
+const PORT_OFF = ['netgear_plus2', 'netgear_plus'];   // Treiber, die Ports per Software abschalten können
 const NO_CABLE = ['avm_fritzbox', 'telekom_speedport', 'tplink_archer', 'tplink_easy', 'netgear_jgs', 'netgear_gs316'];   // Treiber ohne Kabeltest
 // Port-Tabelle im Gerätedialog (für alle sichtbar, sobald der Switch abgefragt wird)
 function renderPorts(d) {

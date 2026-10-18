@@ -50,15 +50,38 @@ class NetgearPlusDriver extends SwitchDriver
     }
 
     // Link, Geschwindigkeit, Beschreibung und Zähler je Port
+    // Zeilen von status.cgi: je Port die versteckten Felder [Port, Status, Tempo-Einstellung, Tempo, Flusssteuerung, MTU]
+    // und die Beschreibung (Zelle sel="input"). Tempo-Einstellung: 1 Auto, 2 Disable, 3–6 10/100M halb/voll
+    private static function statusRows(string $html): array
+    {
+        $out = [];
+        $parts = preg_split('#<tr[^>]*class=["\']portID["\']#i', $html);
+        array_shift($parts);
+        foreach ($parts as $tr) {
+            $tr = preg_split('#</tr>#i', $tr)[0];
+            preg_match_all('#<input[^>]*type=["\']?hidden["\']?[^>]*value=["\']([^"\']*)#i', $tr, $hm);
+            $h = $hm[1];
+            if (!isset($h[0]) || !ctype_digit($h[0])) {
+                continue;
+            }
+            $out[(int) $h[0]] = ['speedCfg' => $h[2] ?? null, 'flow' => $h[4] ?? null,
+                'desc' => preg_match('#sel=["\']input["\'][^>]*>([^<]*)<#i', $tr, $dm) ? trim(html_entity_decode($dm[1], ENT_QUOTES)) : ''];
+        }
+        return $out;
+    }
+
     public function ports(): array
     {
         $ports = [];
-        foreach (self::table($this->get('status.cgi'), ['port' => 'Port', 'desc' => 'Port Description', 'state' => 'Port Status', 'speed' => 'Linked Speed']) as $r) {
+        $statusHtml = $this->get('status.cgi');
+        $cfg = self::statusRows($statusHtml);
+        foreach (self::table($statusHtml, ['port' => 'Port', 'desc' => 'Port Description', 'state' => 'Port Status', 'speed' => 'Linked Speed']) as $r) {
             if (!ctype_digit($r['port'] ?? '')) {
                 continue;
             }
             $ports[(int) $r['port']] = [
                 'link'  => strcasecmp($r['state'] ?? '', 'Up') === 0,
+                'off'   => ($cfg[(int) $r['port']]['speedCfg'] ?? '') === '2',
                 'speed' => preg_match('/^\d+M$/i', $r['speed'] ?? '') ? $r['speed'] : null,
                 'desc'  => ($r['desc'] ?? '') !== '' ? $r['desc'] : null,
                 'rx' => null, 'tx' => null, 'crc' => null,
@@ -153,6 +176,28 @@ class NetgearPlusDriver extends SwitchDriver
     }
 
     // Kabeltest: der Port ist dabei ein paar Sekunden ohne Link
+    // Port ab-/einschalten wie in der Oberfläche (Port Status → Haken → Speed „Disable“/„Auto“ → Apply);
+    // Beschreibung und Flusssteuerung werden unverändert mitgeschickt
+    public function setPortEnabled(int $port, bool $on): void
+    {
+        $page = $this->get('status.cgi');
+        $row = self::statusRows($page)[$port] ?? null;
+        if ($row === null || $row['speedCfg'] === null) {
+            throw new SwitchParseError("Einstellungen von Port $port nicht gefunden – bitte Analyse-Paket schicken");
+        }
+        $hash = preg_match('#name=["\']hash["\'][^>]*value=["\']?(\w+)#i', $page, $m) ? $m[1] : '';
+        $speed = $on ? ($row['speedCfg'] === '2' ? 1 : (int) $row['speedCfg']) : 2;
+        $r = $this->get('status.cgi', ['DESCRIPTION' => $row['desc'], 'SPEED' => $speed, 'FLOW_CONTROL' => $row['flow'] ?? 2,
+                                       "port$port" => 'checked', 'hash' => $hash]);
+        if (stripos($r, 'CHECK HASH FAILED') !== false) {
+            throw new RuntimeException('Switch hat das Schalten abgelehnt (Sitzung abgelaufen)');
+        }
+        $now = self::statusRows($r ?: $this->get('status.cgi'))[$port]['speedCfg'] ?? null;
+        if ($now !== null && ($now === '2') === $on) {
+            throw new RuntimeException('Switch hat die Änderung nicht übernommen');
+        }
+    }
+
     public function cableTest(int $port): array
     {
         $page = $this->get('cableTester.cgi');

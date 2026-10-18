@@ -2,7 +2,7 @@
 // netmon – einen Switch-Port sperren oder freigeben (z. B. per Cron zu festen Zeiten)
 // Aufruf:  php /var/www/html/netmon/collector/port.php aus|an <IP oder Geräte-ID des Switches> <Port>
 // Beispiel: php /var/www/html/netmon/collector/port.php aus 192.168.2.10 7
-// Unterstützt: Netgear GS308Ev4 / GS108Ev4 (neue Oberfläche). Der Uplink-Port wird nie abgeschaltet.
+// Unterstützt: Netgear GS308Ev4 / GS108Ev4 und die älteren Plus-Switches (GS105E/GS105Ev2, GS108Ev3 …). Der Uplink-Port wird nie abgeschaltet.
 
 declare(strict_types=1);
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 – 2026-10-18
+
+- Port sperren / freigeben auch bei den Netgear-Plus-Switches mit älterer Oberfläche (GS105E/GS105Ev2, GS108Ev3 …)
+
 ## 1.6.0 – 2026-10-18
 
 - **Port sperren / freigeben** (Netgear GS308Ev4 / GS108Ev4): Knopf in der Port-Liste des Switches, der Port wird per
