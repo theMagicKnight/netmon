@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0 – 2026-10-18
+
+- **Schnellzugriff fürs Handy** (`/netmon/schnell.php`, Blitz-Symbol oben): große Knöpfe zum Sperren/Freigeben
+  angehefteter Ports, LEDs aller Switches an/aus, Geräte online, letzter Speedtest, letzte Ereignisse;
+  aktualisiert sich alle 30 s. Ports anheften: Switch öffnen → Port-Liste → „☆ Schnellzugriff“.
+  Auf dem Handy-Startbildschirm: langer Druck auf das netmon-Symbol → „Schnellzugriff“.
+
 ## 1.6.2 – 2026-10-18
 
 - Handy-Browser mit eigenem „Dunkelmodus für Webseiten“ (Samsung Internet): netmon meldet, dass es Hell und Dunkel selbst

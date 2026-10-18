@@ -1520,8 +1520,11 @@ function renderPorts(d) {
     const test = IS_ADMIN && d.swPass && canCable && p.p !== d.uplink && !p.off ? `<button type="button" class="btn btn-link btn-sm p-0 port-test" data-cable="${p.p}">Kabel testen</button>` : '';
     const lock = IS_ADMIN && d.swPass && PORT_OFF.includes(d.driver) && p.p !== d.uplink
       ? `<button type="button" class="btn btn-link btn-sm p-0 port-test ms-2${p.off ? '' : ' text-danger'}" data-portoff="${p.p}" data-on="${p.off ? 1 : 0}">${p.off ? 'Port freigeben' : 'Port sperren'}</button>` : '';
+    const pinned = (devData.quickPorts || []).includes(d.id + ':' + p.p);
+    const pin = IS_ADMIN && PORT_OFF.includes(d.driver) && d.swPass && p.p !== d.uplink
+      ? `<button type="button" class="btn btn-link btn-sm p-0 port-test ms-2" data-qpin="${p.p}" data-pinned="${pinned ? 1 : 0}" title="Auf der Handy-Seite „Schnellzugriff“ anzeigen">${pinned ? '★ im Schnellzugriff' : '☆ Schnellzugriff'}</button>` : '';
     const offTxt = p.off ? '<div class="port-desc text-danger">gesperrt – per Software abgeschaltet</div>' : '';
-    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who">${who}${desc}${offTxt}${sb}${cab}${test}${lock}</td>
+    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who">${who}${desc}${offTxt}${sb}${cab}${test}${lock}${pin}</td>
       <td class="text-nowrap">${p.off ? '<span class="text-danger">gesperrt</span>' : p.link ? esc(p.speed || 'Link') : '<span class="text-body-secondary">kein Link</span>'}</td>
       <td class="mono text-nowrap text-end">${p.link && p.rx != null ? `↓ ${fmtBps(p.rx)}<br>↑ ${fmtBps(p.tx)}` : ''}</td></tr>`;
   }).join('');
@@ -2084,6 +2087,16 @@ $('#swPoll')?.addEventListener('click', async () => {
   } finally {
     btn.disabled = false;
   }
+});
+// Port an den Schnellzugriff heften
+$('#devPorts').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-qpin]');
+  if (!b || !currentDev) return;
+  try {
+    const r = await post('quick_pin', { id: currentDev.id, port: Number(b.dataset.qpin), pin: b.dataset.pinned === '1' ? 0 : 1 });
+    devData.quickPorts = r.pinned;
+    renderPorts(currentDev);
+  } catch (err) { $('#devError').textContent = err.message; }
 });
 // Port sperren / freigeben
 $('#devPorts').addEventListener('click', async (e) => {

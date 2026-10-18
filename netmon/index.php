@@ -32,6 +32,7 @@ $ico = [
     'up'     => '<path d="M12 20V6M6 12l6-6 6 6"/>',
     'ping'   => '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     'devs'   => '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8"/>',
+    'bolt'   => '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
 ];
 $svg = fn($k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' . $ico[$k] . '</svg>';
 
@@ -92,6 +93,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
       </div>
     </div>
     <div class="side-icons">
+      <a class="btn-icon" href="schnell.php" aria-label="Schnellzugriff" title="Schnellzugriff"><?= $svg('bolt') ?></a>
       <button class="btn-icon theme-btn" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel"><span class="i-moon"><?= $svg('moon') ?></span><span class="i-sun"><?= $svg('sun') ?></span></button>
       <button class="btn-icon refresh-btn" type="button" aria-label="Aktualisieren" title="Aktualisieren"><?= $svg('reload') ?></button>
       <a class="btn-icon danger" href="logout.php" aria-label="Abmelden" title="Abmelden"><?= $svg('out') ?></a>
@@ -111,6 +113,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
         <div id="lastScan" class="small text-body-secondary text-truncate mt-1"></div>
       </div>
       <div class="d-flex gap-2 d-lg-none">
+        <a class="btn-icon" href="schnell.php" aria-label="Schnellzugriff"><?= $svg('bolt') ?></a>
         <button class="btn-icon refresh-btn" type="button" aria-label="Aktualisieren"><?= $svg('reload') ?></button>
         <button class="btn-icon theme-btn" type="button" aria-label="Hell/Dunkel umschalten"><span class="i-moon"><?= $svg('moon') ?></span><span class="i-sun"><?= $svg('sun') ?></span></button>
       </div>

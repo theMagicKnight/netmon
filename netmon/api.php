@@ -44,6 +44,9 @@ try {
         'switch_poll'     => admin() ?? switchPoll(body()),
         'switch_cable'    => admin() ?? switchCable(body()),
         'switch_port'     => admin() ?? switchPortSet(body()),
+        'quick'           => quick(),
+        'quick_pin'       => admin() ?? quickPin(body()),
+        'leds_all'        => admin() ?? ledsAll(body()),
         'connect'         => admin() ?? connectDevices(body()),
         'dismiss_suggestion' => admin() ?? dismissSuggestion(body()),
         'switch_drivers'  => admin() ?? switchDriverList(),
@@ -412,6 +415,7 @@ function devices(): array
     natcasesort($locations);
     return [
         'dismissed' => json_decode((string) settings()['sug_dismissed'], true) ?: [],
+        'quickPorts' => array_map(fn($x) => $x[0] . ':' . $x[1], quickList()),
         'types'     => DEVICE_TYPES,
         'parents'   => $parents,
         'locations' => array_values($locations),
@@ -662,6 +666,94 @@ function switchPortSet(array $in): array
         throw new InvalidArgumentException($e->getMessage());
     }
     return ['ok' => true];
+}
+
+// Schnellzugriff (Handy): angeheftete Ports mit Zustand, Status in Kurzform, letzte Ereignisse
+function quickList(): array
+{
+    $l = json_decode((string) settings()['quick_ports'], true);
+    return is_array($l) ? array_values(array_filter($l, fn($x) => is_array($x) && count($x) === 2)) : [];
+}
+
+function quick(): array
+{
+    $db = db();
+    $devs = [];
+    foreach ($db->query('SELECT id, INET_NTOA(ip) AS ip, name, hostname, mac, vendor, device_type, parent_id, port, is_online, location, sw_driver
+                           FROM devices') as $d) {
+        $devs[(int) $d['id']] = $d;
+    }
+    $ports = switchPorts();
+    $out = [];
+    foreach (quickList() as [$id, $p]) {
+        $sw = $devs[(int) $id] ?? null;
+        if (!$sw) {
+            continue;
+        }
+        $pi = null;
+        foreach ($ports[(int) $id] ?? [] as $x) {
+            if ($x['p'] === (int) $p) {
+                $pi = $x;
+            }
+        }
+        $who = [];
+        foreach ($devs as $d) {
+            if ((int) $d['parent_id'] === (int) $id && (string) $d['port'] === (string) $p) {
+                $who[] = displayName($d);
+            }
+        }
+        $out[] = ['id' => (int) $id, 'p' => (int) $p, 'switch' => displayName($sw), 'location' => $sw['location'],
+                  'desc' => $pi['desc'] ?? null, 'who' => $who, 'link' => $pi['link'] ?? false, 'off' => $pi['off'] ?? false,
+                  'speed' => $pi['speed'] ?? null, 'updated' => $pi['updated'] ?? null];
+    }
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $ledDevs = 0;
+    foreach ($db->query("SELECT sw_driver FROM devices WHERE sw_pass IS NOT NULL AND sw_pass <> '' AND sw_driver IS NOT NULL") as $r) {
+        try {
+            $ledDevs += switch_can_leds(switch_driver_class($r['sw_driver'])) ? 1 : 0;
+        } catch (RuntimeException $e) {
+        }
+    }
+    $s = settings();
+    $ev = $db->query("SELECT e.event, e.info, e.created_at, COALESCE(d.name, d.hostname, INET_NTOA(d.ip)) AS label
+                        FROM device_events e LEFT JOIN devices d ON d.id = e.device_id ORDER BY e.created_at DESC, e.id DESC LIMIT 6")->fetchAll();
+    return ['ports' => $out, 'status' => status(), 'leds' => ['count' => $ledDevs, 'off' => $s['led_off'], 'on' => $s['led_on']],
+            'events' => $ev, 'admin' => is_admin()];
+}
+
+// Port an den Schnellzugriff heften / lösen
+function quickPin(array $in): array
+{
+    $id = (int) ($in['id'] ?? 0);
+    $p = (int) ($in['port'] ?? 0);
+    $list = array_values(array_filter(quickList(), fn($x) => !((int) $x[0] === $id && (int) $x[1] === $p)));
+    if (!empty($in['pin']) && $id > 0 && $p > 0) {
+        $list[] = [$id, $p];
+    }
+    netmon_set(db(), 'quick_ports', json_encode(array_slice($list, 0, 20)));
+    return ['ok' => true, 'pinned' => array_map(fn($x) => $x[0] . ':' . $x[1], $list)];
+}
+
+// LEDs aller Switches, die das können, sofort an/aus
+function ledsAll(array $in): array
+{
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $on = !empty($in['on']);
+    $ok = 0;
+    $err = [];
+    foreach (db()->query("SELECT id, INET_NTOA(ip) AS ip, COALESCE(name, hostname, INET_NTOA(ip)) AS label, sw_pass, sw_user, sw_driver
+                            FROM devices WHERE sw_pass IS NOT NULL AND sw_pass <> '' AND ip IS NOT NULL AND is_virtual = 0") as $d) {
+        try {
+            if (!switch_can_leds(switch_driver_class($d['sw_driver'] ?: 'netgear_plus'))) {
+                continue;
+            }
+            switch_leds(db(), $d, $on);
+            $ok++;
+        } catch (Throwable $e) {
+            $err[] = $d['label'] . ': ' . $e->getMessage();
+        }
+    }
+    return ['ok' => true, 'count' => $ok, 'errors' => $err];
 }
 
 // Kabeltest an einem Port (der Port ist dabei kurz ohne Link)

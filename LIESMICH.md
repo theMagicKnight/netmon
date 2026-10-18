@@ -147,6 +147,12 @@ vom Netz getrennt (z. B. ein eigener Access Point fürs Kinderzimmer). Zu festen
 0 14 * * 1-5  root  /usr/bin/php /var/www/html/netmon/collector/port.php an  192.168.2.10 7
 ```
 
+## Schnellzugriff (Handy)
+
+`http://<server>/netmon/schnell.php` – oder oben auf das Blitz-Symbol. Zeigt die angehefteten Ports mit großem
+„Sperren/Freigeben“-Knopf, LEDs an/aus und den Status in Kurzform. Ports anheften: Switch öffnen → Port-Liste →
+„☆ Schnellzugriff“. Tipp: Seite im Handy-Browser „Zum Startbildschirm hinzufügen“.
+
 ## Speedport (Treiber „Telekom Speedport“)
 
 Kein Passwort nötig: In netmon den Speedport öffnen → Einstellungen → Typ „Router“, Treiber „Telekom Speedport“

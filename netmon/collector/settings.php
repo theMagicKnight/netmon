@@ -22,6 +22,7 @@ const NETMON_DEFAULTS = [
     'speedtest_request'   => 0,
     'room_layout'         => '',     // Positionen der Raumkarten (JSON)
     'sug_dismissed'       => '',     // ignorierte Verbindungsvorschläge (JSON)
+    'quick_ports'         => '',     // Ports auf der Schnellzugriff-Seite (JSON: [[Geräte-ID, Port], …])
 ];
 
 function netmon_pdo(array $cfg): PDO
