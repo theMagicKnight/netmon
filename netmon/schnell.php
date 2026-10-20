@@ -144,7 +144,8 @@ function render() {
   $('#qPorts').innerHTML = data.ports.length ? data.ports.map((p, i) => {
     const name = p.who.length ? p.who.join(', ') : p.desc || `Port ${p.p}`;
     const state = p.off ? 'gesperrt' : p.link ? `frei · ${p.speed || 'Link'}` : 'frei · kein Gerät aktiv';
-    const btn = data.admin ? `<button class="q-btn ${p.off ? 'unlock' : 'lock'}" type="button" data-i="${i}">${p.off ? 'Freigeben' : 'Sperren'}</button>` : '';
+    const btn = !data.admin ? '' : p.guard && !p.off ? `<button class="q-btn" type="button" disabled title="${esc(p.guard)}" style="background:var(--nm-btn);color:var(--bs-secondary-color)">geschützt</button>`
+      : `<button class="q-btn ${p.off ? 'unlock' : 'lock'}" type="button" data-i="${i}">${p.off ? 'Freigeben' : 'Sperren'}</button>`;
     return `<div class="q-port${p.off ? ' is-off' : ''}"><span class="q-dot ${p.off ? 'off' : p.link ? 'on' : ''}"></span>
       <div class="q-main"><div class="q-title">${esc(name)}</div>
         <div class="q-sub">${esc(state)}</div><div class="q-sub">${esc(p.switch)} · Port ${p.p}</div></div>${btn}</div>`;

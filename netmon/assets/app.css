@@ -581,3 +581,4 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
   .who-row .who-txt { flex: 1; }
   .who-row .port-acts { margin-top: 0; flex-wrap: nowrap; flex: 0 0 auto; }
 }
+.port-act.is-guard { cursor: help; color: var(--bs-secondary-color); border-style: dashed; }

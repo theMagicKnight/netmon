@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.3 – 2026-10-20
+
+- **Geschützte Ports:** Ein Port lässt sich nicht sperren, wenn dahinter (auch mehrere Ebenen tief) ein Switch, der Router
+  oder der netmon-Rechner selbst hängt – sonst schneidet sich netmon vom Netz ab und kann den Port nicht wieder freigeben.
+  Anzeige „🛡 geschützt“ mit Grund; gilt auch für Schnellzugriff und `port.php`. Access Points bleiben sperrbar.
+
 ## 1.7.2 – 2026-10-20
 
 - Port-Liste am PC: Knöpfe stehen rechts neben dem Namen in derselben Zeile (immer sichtbar); am Handy darunter

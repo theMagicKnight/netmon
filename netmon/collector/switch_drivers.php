@@ -154,9 +154,69 @@ function switch_can_portoff(string $cls): bool
     return (new ReflectionMethod($cls, 'setPortEnabled'))->getDeclaringClass()->getName() !== SwitchDriver::class;
 }
 
+// IPs dieses Rechners (netmon selbst) – damit er sich nicht über einen gesperrten Port vom Netz abschneidet
+function netmon_own_ips(): array
+{
+    $ips = preg_split('/\s+/', trim((string) @shell_exec('hostname -I 2>/dev/null')));
+    if (!empty($_SERVER['SERVER_ADDR'])) {
+        $ips[] = $_SERVER['SERVER_ADDR'];
+    }
+    return array_values(array_filter(array_unique($ips), fn($ip) => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && !str_starts_with($ip, '127.')));
+}
+
+// Geschützte Ports: dahinter (auch mehrere Ebenen tief) hängt ein Switch, ein Router oder netmon selbst.
+// Ergebnis: ["Geräte-ID:Port" => Grund]. Access Points bleiben sperrbar (z. B. eigenes WLAN fürs Kinderzimmer).
+function switch_protected_ports(PDO $db): array
+{
+    $devs = $db->query("SELECT id, INET_NTOA(ip) AS ip, COALESCE(name, hostname, INET_NTOA(ip)) AS label, device_type, parent_id, port, is_virtual
+                          FROM devices")->fetchAll();
+    $kids = [];
+    foreach ($devs as $d) {
+        if ($d['parent_id'] !== null) {
+            $kids[(int) $d['parent_id']][] = $d;
+        }
+    }
+    $own = netmon_own_ips();
+    $why = function (array $d) use ($own): ?string {
+        if (in_array($d['ip'], $own, true)) {
+            return "dahinter läuft netmon selbst ({$d['label']}) – gesperrt wäre netmon nicht mehr erreichbar";
+        }
+        if (in_array($d['device_type'], ['switch', 'router'], true)) {
+            return "dahinter hängt " . ($d['device_type'] === 'router' ? 'der Router' : 'der Switch') . " „{$d['label']}“";
+        }
+        return null;
+    };
+    $out = [];
+    foreach ($devs as $d) {
+        if ($d['parent_id'] === null || !ctype_digit((string) $d['port'])) {
+            continue;
+        }
+        $key = $d['parent_id'] . ':' . (int) $d['port'];
+        // alles unterhalb dieses Geräts durchsuchen
+        $stack = [$d];
+        $seen = [];
+        while ($stack && !isset($out[$key])) {
+            $x = array_pop($stack);
+            if (isset($seen[$x['id']])) {
+                continue;
+            }
+            $seen[$x['id']] = true;
+            if (($r = $why($x)) !== null) {
+                $out[$key] = $r;
+                break;
+            }
+            array_push($stack, ...($kids[(int) $x['id']] ?? []));
+        }
+    }
+    return $out;
+}
+
 // Port schalten und sofort neu abfragen (Status in der Datenbank aktuell)
 function switch_port_enable(PDO $db, array $dev, int $port, bool $on): void
 {
+    if (!$on && ($r = switch_protected_ports($db)[$dev['id'] . ':' . $port] ?? null) !== null) {
+        throw new RuntimeException("Port $port ist geschützt: $r");
+    }
     switch_locked($db, (int) $dev['id'], 20, fn() => switch_open($dev)->session(fn(SwitchDriver $d) => $d->setPortEnabled($port, $on)));
     $db->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, NOW())")
        ->execute([$dev['id'], "Port $port " . ($on ? 'freigegeben' : 'gesperrt')]);

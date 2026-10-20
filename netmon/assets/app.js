@@ -1518,10 +1518,12 @@ function renderPorts(d) {
     const sb = standby(p) ? '<div class="port-desc">Gerät aus – Netzwerkkarte im Standby, daher 10M</div>' : '';
     const cab = p.cable ? `<div class="port-cable ${/ok|normal/i.test(p.cable.result) ? 'ok' : 'bad'}">Kabel: ${esc(p.cable.result)}${p.cable.dist && p.cable.dist !== '0' ? ' · ' + esc(p.cable.dist) + ' m' : ''} · ${esc(fmtTime(p.cable.at))}</div>` : '';
     const test = IS_ADMIN && d.swPass && canCable && p.p !== d.uplink && !p.off ? `<button type="button" class="port-act" data-cable="${p.p}" title="Kabeltest – Port ist dabei kurz ohne Verbindung">⌁ Kabeltest</button>` : '';
-    const lock = IS_ADMIN && d.swPass && PORT_OFF.includes(d.driver) && p.p !== d.uplink
-      ? `<button type="button" class="port-act ${p.off ? 'is-unlock' : 'is-lock'}" data-portoff="${p.p}" data-on="${p.off ? 1 : 0}">${p.off ? '🔓 Freigeben' : '🔒 Sperren'}</button>` : '';
+    const guard = devData.protectedPorts?.[d.id + ':' + p.p];
+    const lock = !(IS_ADMIN && d.swPass && PORT_OFF.includes(d.driver) && p.p !== d.uplink) ? ''
+      : guard && !p.off ? `<span class="port-act is-guard" title="Nicht sperrbar: ${esc(guard)}">🛡 geschützt</span>`
+      : `<button type="button" class="port-act ${p.off ? 'is-unlock' : 'is-lock'}" data-portoff="${p.p}" data-on="${p.off ? 1 : 0}">${p.off ? '🔓 Freigeben' : '🔒 Sperren'}</button>`;
     const pinned = (devData.quickPorts || []).includes(d.id + ':' + p.p);
-    const pin = IS_ADMIN && PORT_OFF.includes(d.driver) && d.swPass && p.p !== d.uplink
+    const pin = IS_ADMIN && PORT_OFF.includes(d.driver) && d.swPass && p.p !== d.uplink && !(guard && !p.off)
       ? `<button type="button" class="port-act${pinned ? ' is-pinned' : ''}" data-qpin="${p.p}" data-pinned="${pinned ? 1 : 0}" title="${pinned ? 'Aus dem Schnellzugriff nehmen' : 'Auf der Seite „Schnellzugriff“ anzeigen'}">${pinned ? '★ Schnellzugriff' : '☆ Schnellzugriff'}</button>` : '';
     const offTxt = p.off ? '<div class="port-desc text-danger">gesperrt – per Software abgeschaltet</div>' : '';
     return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who"><div class="who-row"><div class="who-txt">${who}${desc}${offTxt}${sb}${cab}</div>${test || lock || pin ? `<div class="port-acts">${lock}${pin}${test}</div>` : ''}</div></td>

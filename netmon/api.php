@@ -416,6 +416,7 @@ function devices(): array
     return [
         'dismissed' => json_decode((string) settings()['sug_dismissed'], true) ?: [],
         'quickPorts' => array_map(fn($x) => $x[0] . ':' . $x[1], quickList()),
+        'protectedPorts' => (function () { require_once NETMON_DIR . '/collector/switch_drivers.php'; return (object) switch_protected_ports(db()); })(),
         'types'     => DEVICE_TYPES,
         'parents'   => $parents,
         'locations' => array_values($locations),
@@ -684,6 +685,8 @@ function quick(): array
         $devs[(int) $d['id']] = $d;
     }
     $ports = switchPorts();
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $guard = switch_protected_ports($db);
     $out = [];
     foreach (quickList() as [$id, $p]) {
         $sw = $devs[(int) $id] ?? null;
@@ -704,7 +707,7 @@ function quick(): array
         }
         $out[] = ['id' => (int) $id, 'p' => (int) $p, 'switch' => displayName($sw), 'location' => $sw['location'],
                   'desc' => $pi['desc'] ?? null, 'who' => $who, 'link' => $pi['link'] ?? false, 'off' => $pi['off'] ?? false,
-                  'speed' => $pi['speed'] ?? null, 'updated' => $pi['updated'] ?? null];
+                  'speed' => $pi['speed'] ?? null, 'updated' => $pi['updated'] ?? null, 'guard' => $guard[$id . ':' . $p] ?? null];
     }
     require_once NETMON_DIR . '/collector/switch_drivers.php';
     $ledDevs = 0;
