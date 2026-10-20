@@ -1524,7 +1524,7 @@ function renderPorts(d) {
     const pin = IS_ADMIN && PORT_OFF.includes(d.driver) && d.swPass && p.p !== d.uplink
       ? `<button type="button" class="port-act${pinned ? ' is-pinned' : ''}" data-qpin="${p.p}" data-pinned="${pinned ? 1 : 0}" title="${pinned ? 'Aus dem Schnellzugriff nehmen' : 'Auf der Seite „Schnellzugriff“ anzeigen'}">${pinned ? '★ Schnellzugriff' : '☆ Schnellzugriff'}</button>` : '';
     const offTxt = p.off ? '<div class="port-desc text-danger">gesperrt – per Software abgeschaltet</div>' : '';
-    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who">${who}${desc}${offTxt}${sb}${cab}${test || lock || pin ? `<div class="port-acts">${lock}${pin}${test}</div>` : ''}</td>
+    return `<tr data-row="${p.p}"><td><span class="port-sq ${portClass(p)}">${p.p}</span></td><td class="who"><div class="who-row"><div class="who-txt">${who}${desc}${offTxt}${sb}${cab}</div>${test || lock || pin ? `<div class="port-acts">${lock}${pin}${test}</div>` : ''}</div></td>
       <td class="text-nowrap">${p.off ? '<span class="text-danger">gesperrt</span>' : p.link ? esc(p.speed || 'Link') : '<span class="text-body-secondary">kein Link</span>'}</td>
       <td class="mono text-nowrap text-end">${p.link && p.rx != null ? `↓ ${fmtBps(p.rx)}<br>↑ ${fmtBps(p.tx)}` : ''}</td></tr>`;
   }).join('');

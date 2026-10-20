@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2 – 2026-10-20
+
+- Port-Liste am PC: Knöpfe stehen rechts neben dem Namen in derselben Zeile (immer sichtbar); am Handy darunter
+
 ## 1.7.1 – 2026-10-20
 
 - Schnellzugriff am PC: Ports als Kacheln nebeneinander, rechts eine Spalte mit LEDs und Ereignissen, vier Kennzahlen oben

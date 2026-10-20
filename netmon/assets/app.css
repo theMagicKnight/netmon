@@ -574,8 +574,10 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 .port-act.is-lock { color: var(--nm-offline); border-color: color-mix(in srgb, var(--nm-offline) 40%, var(--nm-btn-border)); }
 .port-act.is-unlock { color: #fff; background: var(--nm-online); border-color: var(--nm-online); }
 .port-act.is-pinned { color: var(--nm-warn); border-color: color-mix(in srgb, var(--nm-warn) 45%, var(--nm-btn-border)); }
-/* PC mit Maus: Port-Knöpfe erst beim Überfahren der Zeile – gesperrte/angeheftete bleiben sichtbar */
-@media (hover: hover) and (pointer: fine) {
-  .port-table .port-act { opacity: 0; transition: opacity .12s; }
-  .port-table tr:hover .port-act, .port-table .port-act:focus-visible, .port-table .port-act.is-unlock, .port-table .port-act.is-pinned { opacity: 1; }
+/* PC: Port-Knöpfe rechts neben dem Namen in derselben Zeile; Handy: darunter */
+.who-txt { min-width: 0; }
+@media (min-width: 992px) {
+  .who-row { display: flex; align-items: center; gap: 1rem; }
+  .who-row .who-txt { flex: 1; }
+  .who-row .port-acts { margin-top: 0; flex-wrap: nowrap; flex: 0 0 auto; }
 }
