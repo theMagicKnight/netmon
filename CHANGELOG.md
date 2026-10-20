@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1 – 2026-10-20
+
+- Schnellzugriff am PC: Ports als Kacheln nebeneinander, rechts eine Spalte mit LEDs und Ereignissen, vier Kennzahlen oben
+- Port-Liste im Switch-Dialog: Sperren, Schnellzugriff und Kabeltest als kleine Knöpfe in einer Zeile; am PC erscheinen sie
+  beim Überfahren der Zeile (gesperrte und angeheftete Ports bleiben markiert)
+
 ## 1.7.0 – 2026-10-18
 
 - **Schnellzugriff fürs Handy** (`/netmon/schnell.php`, Blitz-Symbol oben): große Knöpfe zum Sperren/Freigeben

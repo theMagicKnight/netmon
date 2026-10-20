@@ -61,6 +61,21 @@ $nm = ['role' => $me['role'], 'csrf' => csrf_token()];
     .q-msg { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 528px; margin: 0 auto;
              background: var(--nm-surface); border: 1px solid var(--bs-border-color); border-radius: .8rem; padding: .7rem 1rem; display: none; }
     .q-msg.show { display: block; }
+    #qPorts { display: grid; grid-template-columns: 1fr; gap: .6rem; }
+    #qPorts .q-port { margin-bottom: 0; }
+    .q-side .q-sec:first-child { margin-top: 1.4rem; }
+    /* PC: breiter, Ports als Kacheln nebeneinander, rechts eine Spalte mit LEDs und Ereignissen */
+    @media (min-width: 992px) {
+      body { padding: 28px 32px; }
+      .q-wrap { max-width: 1240px; }
+      .q-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 2rem; align-items: start; }
+      .q-stats { grid-template-columns: repeat(4, 1fr); }
+      #qPorts { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+      .q-side { position: sticky; top: 28px; background: var(--nm-surface); border: 1px solid var(--bs-border-color);
+                border-radius: 1rem; padding: 0 1.1rem 1rem; }
+      .q-side .q-row .q-btn { min-height: 2.6rem; }
+      .q-msg { left: auto; right: 32px; bottom: 28px; width: 360px; }
+    }
   </style>
 </head>
 <body>
@@ -70,11 +85,15 @@ $nm = ['role' => $me['role'], 'csrf' => csrf_token()];
     <a class="btn btn-ghost btn-sm" href="./">Übersicht</a>
   </div>
 
+  <div class="q-grid">
+  <div>
   <div class="q-stats" id="qStats"></div>
 
   <div class="q-sec">Ports</div>
   <div id="qPorts"></div>
+  </div>
 
+  <aside class="q-side">
   <div id="qLedBox">
     <div class="q-sec">Switch-LEDs</div>
     <div class="q-row">
@@ -86,6 +105,8 @@ $nm = ['role' => $me['role'], 'csrf' => csrf_token()];
 
   <div class="q-sec">Letzte Ereignisse</div>
   <div id="qEvents"></div>
+  </aside>
+  </div>
 </div>
 <div class="q-msg" id="qMsg"></div>
 
@@ -116,7 +137,9 @@ function render() {
   $('#qStats').innerHTML = `
     <div class="q-stat"><div class="v">${st.online} / ${st.total}</div><div class="l">Geräte online${st.new24h ? ` · ${st.new24h} neu` : ''}</div></div>
     <div class="q-stat"><div class="v">${sp && !sp.error ? `↓ ${Math.round(sp.download_mbps)}` : '–'}</div>
-      <div class="l">${sp && !sp.error ? `↑ ${Math.round(sp.upload_mbps)} Mbit/s · ${Math.round(sp.ping_ms)} ms` : 'kein Speedtest'}</div></div>`;
+      <div class="l">${sp && !sp.error ? `↑ ${Math.round(sp.upload_mbps)} Mbit/s · ${Math.round(sp.ping_ms)} ms` : 'kein Speedtest'}</div></div>
+    <div class="q-stat d-none d-lg-block"><div class="v">${data.ports.filter((p) => p.off).length} / ${data.ports.length}</div><div class="l">Ports gesperrt</div></div>
+    <div class="q-stat d-none d-lg-block"><div class="v">${st.scan ? hhmm(st.scan.started_at) : '–'}</div><div class="l">letzter Scan${st.scan ? ` · ${st.scan.hosts_up} Geräte` : ''}</div></div>`;
 
   $('#qPorts').innerHTML = data.ports.length ? data.ports.map((p, i) => {
     const name = p.who.length ? p.who.join(', ') : p.desc || `Port ${p.p}`;

@@ -564,3 +564,18 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 .port-strip i.locked { background: transparent; box-shadow: inset 0 0 0 1.5px var(--nm-offline); }
 .rj.locked .rj-jack { outline: 1.5px solid var(--nm-offline); outline-offset: 1px; }
 .rj.locked .led, .rj.locked .led2 { background: transparent; box-shadow: none; animation: none; }
+
+/* Aktionen je Port: kleine Knöpfe in einer Zeile */
+.port-acts { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
+.port-act { font-size: .72rem; line-height: 1; padding: .3rem .5rem; border-radius: 999px; border: 1px solid var(--nm-btn-border);
+  background: var(--nm-btn); color: var(--bs-secondary-color); white-space: nowrap; }
+.port-act:hover { color: var(--bs-body-color); border-color: color-mix(in srgb, var(--nm-accent) 45%, var(--nm-btn-border)); }
+.port-act:disabled { opacity: .5; }
+.port-act.is-lock { color: var(--nm-offline); border-color: color-mix(in srgb, var(--nm-offline) 40%, var(--nm-btn-border)); }
+.port-act.is-unlock { color: #fff; background: var(--nm-online); border-color: var(--nm-online); }
+.port-act.is-pinned { color: var(--nm-warn); border-color: color-mix(in srgb, var(--nm-warn) 45%, var(--nm-btn-border)); }
+/* PC mit Maus: Port-Knöpfe erst beim Überfahren der Zeile – gesperrte/angeheftete bleiben sichtbar */
+@media (hover: hover) and (pointer: fine) {
+  .port-table .port-act { opacity: 0; transition: opacity .12s; }
+  .port-table tr:hover .port-act, .port-table .port-act:focus-visible, .port-table .port-act.is-unlock, .port-table .port-act.is-pinned { opacity: 1; }
+}
