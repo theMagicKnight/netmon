@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0 – 2026-10-20
+
+- **Offline-Geräte ausblenden:** Neue Einstellung (Netzwerkscan → „Offline-Geräte ausblenden“, Standard 3 Tage).
+  Geräte, die länger offline sind, verschwinden aus Baum, Liste und Räumen – gespeichert bleiben sie (Name, Raum, Verlauf)
+  und tauchen wieder auf, sobald sie online sind. Neben „Nur online“ zeigt „N ausgeblendet“ sie per Klick wieder an.
+  Geräte, an denen etwas hängt, werden nie ausgeblendet; unter „Geräte“ stehen weiterhin alle.
+
 ## 1.7.4 – 2026-10-20
 
 - **Neue Doku:** vollständiges Handbuch `docs/HANDBUCH.md` (Installation, Treiber, Steuern, Tailscale, IP-Plan,

@@ -9,6 +9,7 @@ const NETMON_DEFAULTS = [
     'strip_domain'        => '.fritz.box',
     'scan_interval'       => 5,      // Minuten
     'offline_after'       => 3,      // verpasste Scans
+    'hide_offline_days'   => 3,      // Offline-Geräte nach so vielen Tagen im Baum/in Räumen ausblenden (0 = nie)
     'speedtest_enabled'   => 1,
     'speedtest_interval'  => 10,     // Minuten: 10, 15, 20, 30, 60
     'animations'          => 1,

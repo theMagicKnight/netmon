@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.7 · Oktober 2026
+Stand: Version 1.8 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -152,6 +152,9 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
 
 - **WLAN des Routers:** Geräte im WLAN von Speedport/FRITZ!Box hängen an einem eigenen Knoten „WLAN“ unter dem
   Router – zuklappbar.
+- **Lange offline:** Geräte, die länger als eingestellt offline sind (Standard 3 Tage), werden ausgeblendet.
+  Neben „Nur online“ steht dann „N ausgeblendet“ – ein Klick zeigt sie wieder. Sie bleiben gespeichert und erscheinen
+  von selbst wieder, sobald sie online sind. Geräte, an denen etwas hängt, bleiben immer sichtbar.
 - **Liste:** alle Geräte untereinander, zum Suchen und Durchsehen.
 - **Räume:** Raumkarten mit ihren Geräten, Leitungen zwischen den Räumen (Farbe = langsamster Port der Strecke).
   „Anordnen“ verschiebt die Karten.
@@ -370,6 +373,7 @@ IP fällt sofort auf.
 | Netzwerkscan | Subnetz | automatisch erkannt |
 | | Scan-Intervall | 5 Minuten |
 | | Offline nach | 3 verpassten Scans |
+| | Offline-Geräte ausblenden nach (nie, 1–30 Tage) | 3 Tage |
 | | Domain-Endung (wird vom Hostnamen abgeschnitten) | `.fritz.box` |
 | Speedtest | an/aus, Intervall | an, 10 Minuten |
 | Switch-LEDs | aus um / an um | leer (nie) |

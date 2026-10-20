@@ -137,11 +137,13 @@ function tree(): array
     $db = db();
     $devs  = $db->query(
         'SELECT id, mac, ip AS ipn, INET_NTOA(ip) AS ip, hostname, vendor, name, location, device_type, parent_id, port,
-                is_private_mac, is_virtual, is_online, missed_scans, last_seen, sw_uplink
+                is_private_mac, is_virtual, is_online, missed_scans, last_seen, sw_uplink,
+                TIMESTAMPDIFF(HOUR, last_seen, NOW()) AS off_hours
            FROM devices ORDER BY ipn IS NULL, ipn, name'
     )->fetchAll();
     $ports = switchPorts();
     $wifi = wifiByMac();
+    $hideDays = (int) settings()['hide_offline_days'];
     $typeOf = array_column($devs, 'device_type', 'id');
     $zones = $db->query('SELECT id, name, ip_from, ip_to, zone_type, parent_device_id FROM zones ORDER BY sort, ip_from')->fetchAll();
 
@@ -214,6 +216,7 @@ function tree(): array
             'private'   => (bool) $d['is_private_mac'],
             'virtual'   => (bool) $d['is_virtual'],
             'lastSeen'  => $d['last_seen'],
+            'stale'     => $hideDays > 0 && !$d['is_online'] && !$d['is_virtual'] && (int) $d['off_hours'] >= $hideDays * 24,
             'wifi'      => $w,
             'wifiAuto'  => $wifiAuto,
             'ports'     => $ports[(int) $d['id']] ?? null,
@@ -241,7 +244,7 @@ function tree(): array
     }
 
     $layout = json_decode((string) settings()['room_layout'], true);
-    return ['root' => $rootId, 'nodes' => array_values($nodes), 'roomLayout' => is_array($layout) ? $layout : (object) []];
+    return ['root' => $rootId, 'nodes' => array_values($nodes), 'hideDays' => $hideDays, 'roomLayout' => is_array($layout) ? $layout : (object) []];
 }
 
 // WLAN-Clients aller APs: MAC => Zeile (leer, solange die Tabelle fehlt)
@@ -910,6 +913,7 @@ function settingsSave(array $in): array
         'strip_domain'        => fn($v) => mb_strlen($v) <= 64 && !preg_match('/\s/', $v),
         'scan_interval'       => fn($v) => in_array((int) $v, [1, 2, 5, 10, 15, 30], true),
         'offline_after'       => fn($v) => (int) $v >= 1 && (int) $v <= 20,
+        'hide_offline_days'   => fn($v) => in_array((int) $v, [0, 1, 2, 3, 7, 14, 30], true),
         'speedtest_enabled'   => fn($v) => in_array((string) $v, ['0', '1'], true),
         'speedtest_interval'  => fn($v) => in_array((int) $v, [10, 15, 20, 30, 60], true),
         'animations'          => fn($v) => in_array((string) $v, ['0', '1'], true),
@@ -922,7 +926,7 @@ function settingsSave(array $in): array
     ];
     $labels = [
         'subnet' => 'Subnetz (z. B. 192.168.5.0/24)', 'strip_domain' => 'Domain-Endung', 'scan_interval' => 'Scan-Intervall',
-        'offline_after' => 'Offline nach (1–20 Scans)', 'speedtest_interval' => 'Speedtest-Intervall',
+        'offline_after' => 'Offline nach (1–20 Scans)', 'hide_offline_days' => 'Offline-Geräte ausblenden', 'speedtest_interval' => 'Speedtest-Intervall',
         'keep_speedtest_days' => 'Speedtest-Rohdaten (1–365 Tage)', 'keep_event_days' => 'Ereignisse (7–3650 Tage)',
         'keep_scan_days' => 'Scan-Protokoll (1–365 Tage)', 'keep_history_days' => 'Verlauf (1–90 Tage)',
         'led_off' => 'LEDs aus (Uhrzeit)', 'led_on' => 'LEDs an (Uhrzeit)',

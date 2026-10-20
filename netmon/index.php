@@ -141,7 +141,8 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
           <button type="button" data-view="tree"><?= $svg('tree') ?>Baum</button>
           <button type="button" data-view="list"><?= $svg('list') ?>Liste</button>
           <button type="button" data-view="rooms"><?= $svg('room') ?>Räume</button>
-          <div class="form-check form-switch ms-auto mb-0 align-self-center only-online">
+          <button type="button" class="stale-btn ms-auto d-none" id="staleBtn"></button>
+          <div class="form-check form-switch mb-0 align-self-center only-online">
             <input class="form-check-input" type="checkbox" id="onlyOnline">
             <label class="form-check-label small text-nowrap" for="onlyOnline"><span class="d-none d-sm-inline">Nur </span>online</label>
           </div>
@@ -289,6 +290,13 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
                   <div class="ctl"><select class="form-select" name="offline_after">
                     <option value="1">1 Scan</option><option value="2">2 Scans</option><option value="3">3 Scans</option>
                     <option value="5">5 Scans</option><option value="10">10 Scans</option>
+                  </select></div>
+                </div>
+                <div class="set-row">
+                  <div class="txt"><div class="t">Offline-Geräte ausblenden</div><div class="d">Geräte, die so lange offline sind, verschwinden aus Baum, Liste und Räumen. Sie bleiben gespeichert (Name, Raum) und tauchen wieder auf, sobald sie online sind. Unter „Geräte“ stehen weiter alle.</div></div>
+                  <div class="ctl"><select class="form-select" name="hide_offline_days">
+                    <option value="0">nie</option><option value="1">nach 1 Tag</option><option value="2">nach 2 Tagen</option>
+                    <option value="3">nach 3 Tagen</option><option value="7">nach 7 Tagen</option><option value="14">nach 14 Tagen</option><option value="30">nach 30 Tagen</option>
                   </select></div>
                 </div>
                 <div class="set-row">

@@ -582,3 +582,8 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
   .who-row .port-acts { margin-top: 0; flex-wrap: nowrap; flex: 0 0 auto; }
 }
 .port-act.is-guard { cursor: help; color: var(--bs-secondary-color); border-style: dashed; }
+
+/* „N ausgeblendet“ neben „Nur online“ */
+.stale-btn { background: none; border: 1px solid var(--bs-border-color); border-radius: 999px; color: var(--bs-secondary-color);
+  font-size: .78rem; padding: .1rem .6rem; margin-right: .75rem; align-self: center; white-space: nowrap; }
+.stale-btn:hover { color: var(--bs-body-color); border-color: var(--bs-secondary-color); }

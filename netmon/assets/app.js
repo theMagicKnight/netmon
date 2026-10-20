@@ -322,9 +322,29 @@ function toggleBranch(id) {
   drawNetwork();
 }
 
-function buildHierarchy() {
+// Lange offline: im Baum, in der Liste und in den Räumen ausblenden (Einstellung „Offline-Geräte ausblenden“).
+// Geräte, an denen etwas hängt, bleiben stehen. „N ausgeblendet“ blendet sie bis zum Neuladen wieder ein.
+let showStale = false;
+function staleIds() {
+  const parents = new Set(treeData.nodes.map((n) => n.parent));
+  return new Set(treeData.nodes.filter((n) => n.stale && !parents.has(n.id)).map((n) => n.id));
+}
+function updateStaleBtn(cnt) {
+  const b = $('#staleBtn');
+  if (!b) return;
+  b.classList.toggle('d-none', cnt === 0);
+  b.textContent = showStale ? `${cnt} alte ausblenden` : `${cnt} ausgeblendet`;
+  b.title = showStale ? '' : `Länger als ${treeData.hideDays} Tag${treeData.hideDays === 1 ? '' : 'e'} offline – klicken zum Anzeigen`;
+}
+function hiddenFilter() {
   const onlyOnline = $('#onlyOnline').checked;
-  const nodes = treeData.nodes.filter((n) => !(onlyOnline && n.kind === 'device' && !n.online && !n.virtual));
+  const stale = staleIds();
+  updateStaleBtn(stale.size);
+  return (n) => !(onlyOnline && n.kind === 'device' && !n.online && !n.virtual) && (showStale || !stale.has(n.id));
+}
+
+function buildHierarchy() {
+  const nodes = treeData.nodes.filter(hiddenFilter());
   // Leere Bereiche ausblenden (alle Geräte fest an Switches gehängt); sie erscheinen wieder, sobald etwas hineinfällt
   const used = new Set(nodes.map((n) => n.parent));
   const shown = nodes.filter((n) => n.kind !== 'zone' || used.has(n.id));
@@ -380,10 +400,10 @@ function upstreamDevice(n, byId) {
 
 function drawRooms() {
   if (roomDragging) return;   // nicht mitten im Ziehen neu aufbauen
-  const onlyOnline = $('#onlyOnline').checked;
   const byId = new Map(treeData.nodes.map((n) => [n.id, n]));
+  const show = hiddenFilter();
   const all = treeData.nodes.filter((n) => n.kind !== 'zone' && n.dbId);
-  const devs = all.filter((n) => !(onlyOnline && !n.online && !n.virtual));
+  const devs = all.filter(show);
 
   // nach Raum gruppieren
   const rooms = new Map();
@@ -1066,6 +1086,7 @@ $('#viewBtns').addEventListener('click', (e) => {
   drawNetwork();
 });
 $('#onlyOnline').addEventListener('change', drawNetwork);
+$('#staleBtn').addEventListener('click', () => { showStale = !showStale; drawNetwork(); });
 window.addEventListener('resize', () => {
   clearTimeout(window._rt);
   window._rt = setTimeout(() => { if (treeData) applyCompactMode(); drawNetwork(); }, 150);
@@ -2269,6 +2290,7 @@ if (IS_ADMIN) {
       }
       notify('Einstellungen gespeichert');
       await loadSettings();
+      if (String(before.hide_offline_days) !== String(data.hide_offline_days)) loadTree();
     } catch (err) {
       $('#setError').textContent = err.message;
     }
