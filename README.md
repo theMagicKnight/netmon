@@ -3,7 +3,7 @@
 **Network monitor for home and small networks** – PHP/MySQL web app that scans your LAN, shows every device in a
 tree, list and room view, and reads switches, access points and the router directly (ports, link speed, traffic,
 cable test, Wi-Fi clients, DSL values).
-*Deutsche Anleitung: [LIESMICH.md](LIESMICH.md)*
+*Deutsch: [Kurzanleitung](LIESMICH.md) · [Handbuch](docs/HANDBUCH.md)*
 
 ![Network tree](docs/tree.png)
 
@@ -60,7 +60,7 @@ The script checks Apache/PHP/MariaDB/nmap and the PHP extensions, installs only 
 Running it again **updates** an existing installation – `config.php` and data are kept, the database schema is
 upgraded automatically.
 
-Manual install (FTP + phpMyAdmin): see [LIESMICH.md](LIESMICH.md).
+Manual install (FTP + phpMyAdmin) and full documentation (German): see [docs/HANDBUCH.md](docs/HANDBUCH.md).
 
 ## Layout
 

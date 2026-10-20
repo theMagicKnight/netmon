@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.4 – 2026-10-20
+
+- **Neue Doku:** vollständiges Handbuch `docs/HANDBUCH.md` (Installation, Treiber, Steuern, Tailscale, IP-Plan,
+  Befehle, Fehlersuche, Technik). `LIESMICH.md` ist jetzt eine Kurzanleitung mit Verweisen, README verlinkt das Handbuch.
+
 ## 1.7.3 – 2026-10-20
 
 - **Geschützte Ports:** Ein Port lässt sich nicht sperren, wenn dahinter (auch mehrere Ebenen tief) ein Switch, der Router
