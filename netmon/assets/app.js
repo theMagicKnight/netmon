@@ -1466,7 +1466,10 @@ function renderSwInfo(d) {
   // Router schalten (Speedport mit Gerätepasswort): WLAN, Gäste-WLAN, neu verbinden, neu starten
   const acts = (swDrivers || []).find((x) => x.key === d.driver)?.actions || [];
   const RA = { wlan_off: 'WLAN aus', wlan_on: 'WLAN an', guest_on: 'Gäste-WLAN an', guest_off: 'Gäste-WLAN aus', reconnect: 'Neu verbinden', reboot: 'Neu starten' };
-  const actRow = IS_ADMIN && acts.length && d.swRealPass ? `<div class="d-flex flex-wrap gap-2 mt-2">${acts.map((k) =>
+  // nur den passenden Knopf zeigen, wenn der Zustand bekannt ist (WLAN an → nur „WLAN aus“)
+  const w = i.wlan || {};
+  const hide = { wlan_on: w.on === true, wlan_off: w.on === false, guest_on: w.guestOn === true, guest_off: w.guestOn === false };
+  const actRow = IS_ADMIN && acts.length && d.swRealPass ? `<div class="d-flex flex-wrap gap-2 mt-2">${acts.filter((k) => !hide[k]).map((k) =>
       `<button type="button" class="btn btn-ghost btn-sm${k === 'reboot' ? ' text-danger' : ''}" data-ract="${k}">${RA[k] || k}</button>`).join('')}</div>` : '';
   box.innerHTML = `<div class="small-label mb-1">${d.type === 'ap' ? 'Access Point' : d.type === 'router' ? 'Router' : 'Switch'}${i.checked ? ' · Stand ' + esc(fmtTime(i.checked)) : ''}</div>
     <div class="sw-facts">${facts}</div>${nameRow}${checks ? `<ul class="sw-checks">${checks}</ul>` : ''}${actRow}`;

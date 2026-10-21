@@ -206,7 +206,7 @@ erfolgreicher Abfrage gespeichert.
 | TP-Link Easy Smart | TL-SG105E/108E/116E … | Ports, Tempo (keine Datenrate) | – | Entwurf |
 | TP-Link Archer / Deco | Archer AX55 Pro, Archer C80 … | WLAN-Clients, CPU/Speicher | – | im Einsatz |
 | AVM FRITZ!Box / Repeater | 7590 u. a., FRITZ!Repeater | DSL, Internet-Rate, LAN, WLAN-Clients | – | im Einsatz |
-| Telekom Speedport | Smart 3, Smart 4, Smart 4R | DSL, LAN-Buchsen, WLAN-Clients; mit Passwort auch öffentliche IP | mit Passwort: WLAN, Gäste-WLAN, neu verbinden, neu starten | Lesen im Einsatz, Schalten neu |
+| Telekom Speedport | Smart 3, Smart 4, Smart 4R | DSL, LAN-Buchsen, WLAN-Clients; mit Passwort auch öffentliche IP | mit Passwort: WLAN, Gäste-WLAN, neu verbinden, neu starten | im Einsatz (Smart 4R Typ A) |
 
 ### 6.2 Netgear Plus (alle Varianten)
 

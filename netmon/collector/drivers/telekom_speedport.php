@@ -344,7 +344,9 @@ final class SpeedportDriver extends SwitchDriver
             'serial'   => $this->v('serial_number'),
             'name'     => null,
             'checks'   => $checks,
-            'wlan'     => ['ssid' => $this->v('wlan_ssid'), 'guestSsid' => $this->v('wlan_guest_ssid'), 'auth' => $this->key !== null],
+            'wlan'     => ['ssid' => $this->v('wlan_ssid'), 'guestSsid' => $this->v('wlan_guest_ssid'), 'auth' => $this->key !== null,
+                           'on' => $this->v('use_wlan') !== null ? $this->v('use_wlan') === '1' : null,
+                           'guestOn' => $this->v('wlan_guest_active') !== null ? $this->v('wlan_guest_active') === '1' : null],
         ];
     }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.11.1 – 2026-10-21
+
+- Speedport am Smart 4R Typ A bestätigt: Anmeldung, Gäste-WLAN schalten, öffentliche IP.
+- Profi-Ansicht: Router-Knöpfe zeigen nur die passende Richtung (WLAN an → nur „WLAN aus“).
+
 ## 1.11.0 – 2026-10-21
 
 - **Speedport mit Gerätepasswort:** Das Passwort ist freiwillig. Ohne liest netmon wie bisher alles Offene (jetzt auch, ob
