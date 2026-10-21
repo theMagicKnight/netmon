@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.11.0 – 2026-10-21
+
+- **Speedport mit Gerätepasswort:** Das Passwort ist freiwillig. Ohne liest netmon wie bisher alles Offene (jetzt auch, ob
+  WLAN und Gäste-WLAN an sind). Mit Passwort meldet es sich an wie die Weboberfläche und kann **WLAN** und **Gäste-WLAN**
+  schalten, **Internet neu verbinden** und **neu starten**; dazu die öffentlichen IP-Adressen. Angemeldet wird nur bei Bedarf
+  (Schalten, stündlicher Info-Abgleich, Analyse-Paket), der Abgleich jede Minute bleibt ohne Anmeldung.
+  Vorlage: speedport-api von Andre0512 (MIT), in PHP nachgebaut – kein Python nötig.
+- **Einfache Ansicht:** neue Karte „Router“ mit WLAN, Gäste-WLAN und „Internet neu verbinden“. Vor dem WLAN-Ausschalten
+  steht da, wer dann kein Netz mehr hat – mit Warnung, wenn man selbst darüber verbunden ist.
+- **Profi-Ansicht:** Router-Knöpfe im Geräte-Dialog (WLAN, Gäste-WLAN, neu verbinden, neu starten).
+- Analyse-Paket des Speedports enthält mit Passwort weitere Seiten (IP-Daten, WLAN, Sicherheitsstatus) – ohne Passwörter,
+  Schlüssel, Rufnummern und Seriennummern.
+
 ## 1.10.0 – 2026-10-21
 
 - **Einfache Ansicht** für Einsteiger (bisher „Schnellzugriff“, ⚡): Internet-Ampel, „Du bist hier mit … über …“,

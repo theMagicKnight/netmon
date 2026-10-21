@@ -26,8 +26,10 @@ abstract class SwitchDriver
     public const HINT  = '/^$/';
     public const NEEDS_USER = false;   // braucht das Gerät zusätzlich einen Benutzernamen?
     public const NEEDS_PASS = true;    // false: Daten ohne Anmeldung lesbar (Speedport)
+    public const PASS_OPTIONAL = false; // true: Passwort freiwillig – damit liest der Treiber mehr und kann schalten (Speedport)
+    public const ACTIONS = [];          // schaltbare Router-Funktionen [schlüssel => beschriftung]
 
-    private $curl;
+    private $curl = null;
 
     public function __construct(protected string $ip, protected string $pass, protected string $user = '')
     {
@@ -45,7 +47,9 @@ abstract class SwitchDriver
 
     public function __destruct()
     {
-        curl_close($this->curl);
+        if ($this->curl) {
+            curl_close($this->curl);
+        }
     }
 
     // Erkennt der Treiber das Gerät unter dieser IP (ohne Passwort)?
@@ -69,6 +73,8 @@ abstract class SwitchDriver
     public function setLeds(bool $on): void { throw new RuntimeException('Dieses Gerät kann die LEDs nicht schalten'); }
     // [seite => inhalt] für das Analyse-Paket
     public function pages(): array { return []; }
+    // Schaltbare Funktionen eines Routers stehen in ACTIONS ([schlüssel => beschriftung]); runAction() führt sie aus
+    public function runAction(string $key): string { throw new RuntimeException('Dieses Gerät kann das nicht'); }
 
     // Anmelden, Arbeit erledigen, immer abmelden (sonst sperren manche Switches weitere Anmeldungen)
     public function session(callable $fn)
@@ -91,6 +97,23 @@ abstract class SwitchDriver
         $r = curl_exec($this->curl);
         if ($r === false) {
             throw new RuntimeException("Switch {$this->ip} nicht erreichbar");
+        }
+        return (string) $r;
+    }
+
+    // Rohe Anfrage mit eigenem Inhalt und Kopfzeilen (verschlüsselte Router-Schnittstellen)
+    protected function request(string $page, ?string $body = null, array $headers = []): string
+    {
+        curl_setopt($this->curl, CURLOPT_URL, "http://{$this->ip}/" . ltrim($page, '/'));
+        curl_setopt($this->curl, CURLOPT_POST, $body !== null);
+        if ($body !== null) {
+            curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
+        }
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, $headers);
+        $r = curl_exec($this->curl);
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, []);
+        if ($r === false) {
+            throw new RuntimeException("Gerät {$this->ip} nicht erreichbar");
         }
         return (string) $r;
     }
@@ -138,6 +161,7 @@ function switch_driver_list(): array
     foreach (array_keys(SWITCH_DRIVERS) as $k) {
         $cls = switch_driver_class($k);
         $out[] = ['key' => $k, 'label' => $cls::LABEL, 'hint' => trim($cls::HINT, '/i'), 'user' => $cls::NEEDS_USER, 'pass' => $cls::NEEDS_PASS,
+                  'passOptional' => $cls::PASS_OPTIONAL, 'actions' => array_keys($cls::ACTIONS),
                   'cable' => (new ReflectionMethod($cls, 'cableTest'))->getDeclaringClass()->getName() === $cls,
                   'leds'  => switch_can_leds($cls), 'portoff' => switch_can_portoff($cls)];
     }
@@ -237,6 +261,22 @@ function switch_port_enable(PDO $db, array $dev, int $port, bool $on): void
     }
     $db->prepare('UPDATE switch_ports SET admin_off = ?, link = IF(? = 1, 0, link) WHERE device_id = ? AND port = ?')
        ->execute([$on ? 0 : 1, $on ? 0 : 1, $dev['id'], $port]);
+}
+
+// Router-Funktion ausführen (WLAN an/aus, neu verbinden …) und danach den Zustand neu lesen
+function switch_router_action(PDO $db, array $dev, string $key): string
+{
+    $msg = switch_locked($db, (int) $dev['id'], 30, fn() => switch_open($dev)->session(fn(SwitchDriver $d) => $d->runAction($key)));
+    $db->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, NOW())")
+       ->execute([$dev['id'], $msg]);
+    if (!in_array($key, ['reboot', 'reconnect'], true)) {
+        sleep(2);
+        try {
+            switch_poll($db, $dev, null, true);
+        } catch (Throwable $e) {
+        }
+    }
+    return $msg;
 }
 
 // LEDs eines Geräts schalten (mit Sperre, damit sich Cron und Oberfläche nicht in die Quere kommen)

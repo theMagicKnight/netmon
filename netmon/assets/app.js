@@ -1444,6 +1444,7 @@ async function fillDriverSelect(d) {
   f.swDriver.value = d.driver || hit?.key || 'auto';
   f.swUser.value = d.swUser || '';
   syncSwUser();
+  if (d === currentDev) renderSwInfo(d);   // Router-Knöpfe brauchen die Treiberliste
   $('#swHint').textContent = d.driver ? 'eingerichtet'
     : hit ? `Vorschlag anhand von „${why}“`
     : brand ? `Für ${brand} gibt es noch keinen Treiber – mit dem Analyse-Paket kann einer gebaut werden.`
@@ -1462,11 +1463,30 @@ function renderSwInfo(d) {
       ${IS_ADMIN ? `<button type="button" class="btn btn-link btn-sm p-0 ms-2" data-sw-take="name">als Name</button>
       <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-sw-take="location">als Raum</button>` : ''}</div>` : '';
   const checks = (i.checks || []).map(([lvl, t]) => `<li class="chk-${lvl}"><span>${ICON[lvl] || '·'}</span>${esc(t)}</li>`).join('');
+  // Router schalten (Speedport mit Gerätepasswort): WLAN, Gäste-WLAN, neu verbinden, neu starten
+  const acts = (swDrivers || []).find((x) => x.key === d.driver)?.actions || [];
+  const RA = { wlan_off: 'WLAN aus', wlan_on: 'WLAN an', guest_on: 'Gäste-WLAN an', guest_off: 'Gäste-WLAN aus', reconnect: 'Neu verbinden', reboot: 'Neu starten' };
+  const actRow = IS_ADMIN && acts.length && d.swRealPass ? `<div class="d-flex flex-wrap gap-2 mt-2">${acts.map((k) =>
+      `<button type="button" class="btn btn-ghost btn-sm${k === 'reboot' ? ' text-danger' : ''}" data-ract="${k}">${RA[k] || k}</button>`).join('')}</div>` : '';
   box.innerHTML = `<div class="small-label mb-1">${d.type === 'ap' ? 'Access Point' : d.type === 'router' ? 'Router' : 'Switch'}${i.checked ? ' · Stand ' + esc(fmtTime(i.checked)) : ''}</div>
-    <div class="sw-facts">${facts}</div>${nameRow}${checks ? `<ul class="sw-checks">${checks}</ul>` : ''}`;
+    <div class="sw-facts">${facts}</div>${nameRow}${checks ? `<ul class="sw-checks">${checks}</ul>` : ''}${actRow}`;
   box.classList.remove('d-none');
 }
-$('#devSwInfo').addEventListener('click', (e) => {
+$('#devSwInfo').addEventListener('click', async (e) => {
+  const a = e.target.closest('[data-ract]');
+  if (a && currentDev) {
+    const k = a.dataset.ract;
+    const ask = { wlan_off: 'WLAN des Routers ausschalten? Alle Geräte darin verlieren das Netz.', reconnect: 'Internet neu verbinden? Es ist etwa eine halbe Minute weg.',
+                  reboot: 'Router neu starten? Netz und Internet sind ein paar Minuten weg.' }[k];
+    if (ask && !confirm(ask)) return;
+    a.disabled = true;
+    try {
+      const r = await post('router_action', { id: currentDev.id, act: k });
+      notify(r.msg);
+    } catch (err) { $('#devError').textContent = err.message; }
+    a.disabled = false;
+    return;
+  }
   const b = e.target.closest('[data-sw-take]');
   if (!b || !currentDev?.swInfo?.name) return;
   const f = $('#devForm');
@@ -2078,10 +2098,11 @@ function syncSwUser() {
   const drv = (swDrivers || []).find((x) => x.key === f.swDriver.value);
   const guess = f.swDriver.value === 'auto' && /fritz|avm/i.test([f.name.value, currentDev?.vendor, currentDev?.hostname].join(' '));
   $('#swUserRow').classList.toggle('d-none', !(drv?.user || guess || f.swUser.value));
-  // Speedport & Co.: Daten ohne Anmeldung lesbar – kein Passwortfeld
-  const noPass = drv && drv.pass === false;
+  // Speedport & Co.: Daten ohne Anmeldung lesbar – Passwort freiwillig (dann kann netmon auch schalten) oder gar keins
+  const noPass = drv && drv.pass === false && !drv.passOptional;
   $('#swPassCol').classList.toggle('invisible', noPass);
   if (noPass) f.swPass.value = '';
+  f.swPass.placeholder = drv?.passOptional ? (currentDev?.swRealPass ? 'gespeichert – leer lassen' : 'freiwillig – nur zum Schalten') : '';
 }
 $('#fSwDriver')?.addEventListener('change', syncSwUser);
 

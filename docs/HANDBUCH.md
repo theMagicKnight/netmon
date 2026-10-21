@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.10 · Oktober 2026
+Stand: Version 1.11 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -206,7 +206,7 @@ erfolgreicher Abfrage gespeichert.
 | TP-Link Easy Smart | TL-SG105E/108E/116E … | Ports, Tempo (keine Datenrate) | – | Entwurf |
 | TP-Link Archer / Deco | Archer AX55 Pro, Archer C80 … | WLAN-Clients, CPU/Speicher | – | im Einsatz |
 | AVM FRITZ!Box / Repeater | 7590 u. a., FRITZ!Repeater | DSL, Internet-Rate, LAN, WLAN-Clients | – | im Einsatz |
-| Telekom Speedport | Smart 3, Smart 4, Smart 4R | DSL, LAN-Buchsen, WLAN-Clients | – | im Einsatz |
+| Telekom Speedport | Smart 3, Smart 4, Smart 4R | DSL, LAN-Buchsen, WLAN-Clients; mit Passwort auch öffentliche IP | mit Passwort: WLAN, Gäste-WLAN, neu verbinden, neu starten | Lesen im Einsatz, Schalten neu |
 
 ### 6.2 Netgear Plus (alle Varianten)
 
@@ -251,10 +251,19 @@ Admin-Sitzung (Tether-App wird abgemeldet).
 
 ### 6.5 Telekom Speedport
 
-Kein Passwort nötig: Typ „Router“, Treiber „Telekom Speedport“ → Verbinden & abfragen.
-Gelesen wird die Statusseite `/data/Status.json` (bei Smart 3/4 verschlüsselt, netmon entschlüsselt sie selbst):
-Modell, Firmware, DSL-Status und -Sync, „Internet verbunden seit“, LAN-Buchsen mit Tempo, WLAN-Geräte mit Signal.
-Internet-Rate und Störabstand stehen dort nicht drin.
+Typ „Router“, Treiber „Telekom Speedport“ → Verbinden & abfragen. Das **Gerätepasswort ist freiwillig**:
+
+- **Ohne Passwort** liest netmon die Statusseite `/data/Status.json` (bei Smart 3/4 verschlüsselt, netmon entschlüsselt
+  sie selbst): Modell, Firmware, DSL-Status und -Sync, „Internet verbunden seit“, LAN-Buchsen mit Tempo,
+  WLAN-Geräte mit Signal, WLAN und Gäste-WLAN an/aus. Internet-Rate und Störabstand stehen dort nicht drin.
+- **Mit Gerätepasswort** meldet sich netmon zusätzlich an (Challenge-Verfahren wie die Weboberfläche) und kann
+  **WLAN** und **Gäste-WLAN** schalten, **Internet neu verbinden** und den **Speedport neu starten**; dazu zeigt es
+  die öffentlichen IP-Adressen. Die Knöpfe stehen in der Profi-Ansicht im Router-Dialog (Admin) und als Karte
+  „Router“ in der einfachen Ansicht (Admin und Familie; Neustart nur Admin).
+
+Der Speedport erlaubt nur **eine Anmeldung gleichzeitig**. Darum meldet sich netmon nur an, wenn es nötig ist –
+beim Schalten, beim stündlichen Info-Abgleich und fürs Analyse-Paket. Der Abgleich jede Minute läuft ohne Anmeldung.
+Ist man gerade selbst in der Speedport-Oberfläche angemeldet, kann ein Knopfdruck in netmon diese Sitzung beenden.
 
 **Hinweis:** Geräte im WLAN eines Repeaters/Access Points sieht der Speedport als „LAN-Gerät“ – sie erscheinen erst
 richtig, wenn der Repeater/AP selbst abgefragt wird.
@@ -307,6 +316,8 @@ benutzte Ansicht** und startet beim nächsten Mal wieder darin.
   danach nicht mehr freigeben.
 - Geht etwas nicht, steht der Grund dabei: „geschützt“ (dahinter hängt ein Switch, der Router oder netmon),
   „Switch nicht eingerichtet“, „Switch hat sich länger nicht gemeldet“, „nur ansehen“.
+- **Router** (Speedport mit Gerätepasswort): WLAN aus/an – vorher steht da, wer dann kein Netz mehr hat –,
+  Gäste-WLAN aus/an, „Internet neu verbinden“.
 - **Lichter an den Switches** aus/an.
 - **Was zuletzt passiert ist:** nur Sperren/Freigeben und Ausfälle von Router, Switches, Access Points.
 - **Hilfe** mit den häufigsten Fragen (auch: „Ich habe mich selbst ausgesperrt“).
@@ -574,6 +585,7 @@ Ein Treiber ist eine PHP-Klasse in `collector/drivers/`, die `SwitchDriver` erwe
 - **smrt** (pklaus, rgl; GPL) – Protokollbeschreibung, nur zum Nachlesen.
 - **AVM TR-064** – Schnittstelle des FritzBox-/Repeater-Treibers.
 - **dsl-monitoring** (aaronk6) – Entschlüsselung der Speedport-`Status.json`.
+- **speedport-api** (Andre0512, MIT) – Vorlage für Anmeldung und Schalten beim Speedport (in PHP nachgebaut).
 - Mitgeliefert: Bootstrap 5.3 (MIT), D3 (ISC), Chart.js (MIT), DM Sans / DM Serif Display (SIL OFL 1.1).
 
 Jede Treiberdatei nennt ihre Quellen im Kopf. Lizenz von netmon: MIT.

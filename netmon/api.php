@@ -47,6 +47,7 @@ try {
         'quick'           => quick(),
         'quick_pin'       => admin() ?? quickPin(body()),
         'leds_all'        => family() ?? ledsAll(body()),
+        'router_action'   => family() ?? routerAction(body()),
         'connect'         => admin() ?? connectDevices(body()),
         'dismiss_suggestion' => admin() ?? dismissSuggestion(body()),
         'switch_drivers'  => admin() ?? switchDriverList(),
@@ -386,7 +387,7 @@ function devices(): array
 {
     $rows = db()->query(
         'SELECT id, mac, INET_NTOA(ip) AS ip, ip AS ipn, hostname, vendor, name, location, device_type, parent_id, port, notes,
-                is_private_mac, is_virtual, is_online, first_seen, last_seen, sw_uplink, sw_driver, sw_user, sw_info, COALESCE(LENGTH(sw_pass), 0) > 0 AS has_sw_pass
+                is_private_mac, is_virtual, is_online, first_seen, last_seen, sw_uplink, sw_driver, sw_user, sw_info, COALESCE(LENGTH(sw_pass), 0) > 0 AS has_sw_pass, COALESCE(LENGTH(sw_pass) > 0 AND sw_pass <> CHAR(45 USING utf8mb4), 0) AS has_real_pass
            FROM devices ORDER BY ipn IS NULL, ipn, name'
     )->fetchAll();
     $ports = switchPorts();
@@ -447,6 +448,7 @@ function devices(): array
             'private'   => (bool) $r['is_private_mac'],
             'virtual'   => (bool) $r['is_virtual'],
             'swPass'    => (bool) $r['has_sw_pass'],
+            'swRealPass'=> (bool) $r['has_real_pass'],
             'wifi'      => $r['mac'] ? ($wifi[$r['mac']] ?? null) : null,
             'wifiClients' => $clientsOf[(int) $r['id']] ?? null,
             'uplink'    => $r['sw_uplink'] !== null ? (int) $r['sw_uplink'] : null,
@@ -809,6 +811,37 @@ function quick(): array
                   'affected' => $aff, 'onlineCount' => count(array_filter($aff, fn($a) => $a['online'])),
                   'self' => in_array(true, array_column($aff, 'me'), true), 'cannot' => $why, 'stale' => $stale];
     }
+    // Router mit schaltbaren Funktionen (Speedport): WLAN, Gäste-WLAN, neu verbinden
+    $routers = [];
+    foreach ($db->query("SELECT id, sw_driver, sw_pass, sw_info FROM devices WHERE sw_driver IS NOT NULL AND sw_pass IS NOT NULL AND sw_pass <> ''") as $r) {
+        try {
+            $acts = (switch_driver_class($r['sw_driver']))::ACTIONS;
+        } catch (Throwable $e) {
+            continue;
+        }
+        if (!$acts) {
+            continue;
+        }
+        $rid = (int) $r['id'];
+        $m = [];
+        $st = $db->prepare("SELECT k, v FROM dev_metrics WHERE device_id = ? AND k IN ('wlan_on', 'guest_on') AND ts > NOW() - INTERVAL 15 MINUTE ORDER BY ts");
+        $st->execute([$rid]);
+        foreach ($st as $x) {
+            $m[$x['k']] = (int) $x['v'];   // der jüngste Wert gewinnt
+        }
+        $info = json_decode((string) $r['sw_info'], true) ?: [];
+        $wl = [];
+        foreach ($wifiOf[$rid] ?? [] as $x) {
+            $wl[] = ['name' => displayName($devs[$x]), 'online' => (bool) $devs[$x]['is_online'], 'me' => $x === $me];
+        }
+        usort($wl, fn($a, $b) => [$b['me'], $b['online'], $a['name']] <=> [$a['me'], $a['online'], $b['name']]);
+        $routers[] = ['id' => $rid, 'name' => displayName($devs[$rid]), 'model' => $info['model'] ?? null,
+                      'canAct' => !in_array($r['sw_pass'], ['', '-'], true), 'actions' => array_keys($acts),
+                      'wlan' => $m['wlan_on'] ?? null, 'guest' => $m['guest_on'] ?? null,
+                      'ssid' => $info['wlan']['ssid'] ?? null, 'guestSsid' => $info['wlan']['guestSsid'] ?? null,
+                      'wifiAffected' => $wl, 'self' => in_array(true, array_column($wl, 'me'), true)];
+    }
+
     $ledDevs = 0;
     foreach ($db->query("SELECT sw_driver FROM devices WHERE sw_pass IS NOT NULL AND sw_pass <> '' AND sw_driver IS NOT NULL") as $r) {
         try {
@@ -829,6 +862,8 @@ function quick(): array
         if ($e['event'] === 'port' && preg_match('/^Port (\d+) (gesperrt|freigegeben)$/', (string) $e['info'], $m)) {
             $what = $labelOf[$e['device_id'] . ':' . $m[1]] ?? ($e['label'] . ', Anschluss ' . $m[1]);
             $simple[] = ['t' => $e['created_at'], 'text' => "„{$what}“ {$m[2]}", 'kind' => $m[2] === 'gesperrt' ? 'off' : 'on'];
+        } elseif ($e['event'] === 'port' && in_array($e['device_type'], ['router', 'ap'], true) && !str_starts_with((string) $e['info'], 'Port ')) {
+            $simple[] = ['t' => $e['created_at'], 'text' => $e['label'] . ': ' . $e['info'], 'kind' => preg_match('/aus|neu/', (string) $e['info']) ? 'off' : 'on'];
         } elseif (in_array($e['event'], ['offline', 'online'], true) && in_array($e['device_type'], ['router', 'switch', 'ap'], true)) {
             $simple[] = ['t' => $e['created_at'], 'text' => $e['label'] . ($e['event'] === 'offline' ? ' ist ausgefallen' : ' läuft wieder'),
                          'kind' => $e['event'] === 'offline' ? 'bad' : 'on'];
@@ -837,7 +872,7 @@ function quick(): array
             break;
         }
     }
-    return ['ports' => $out, 'status' => status(), 'internet' => internetState(), 'where' => $where,
+    return ['ports' => $out, 'routers' => $routers, 'status' => status(), 'internet' => internetState(), 'where' => $where,
             'leds' => ['count' => $ledDevs, 'off' => $s['led_off'], 'on' => $s['led_on']],
             'events' => array_slice($ev, 0, 6), 'simpleEvents' => $simple,
             'admin' => is_admin(), 'canSwitch' => can_switch(), 'user' => current_user()['username']];
@@ -894,6 +929,32 @@ function quickPin(array $in): array
     }
     netmon_set(db(), 'quick_ports', json_encode(array_slice($list, 0, 20)));
     return ['ok' => true, 'pinned' => array_map(fn($x) => $x[0] . ':' . $x[1], $list)];
+}
+
+// Router schalten: WLAN, Gäste-WLAN, neu verbinden (Familie und Admin), neu starten (nur Admin)
+function routerAction(array $in): array
+{
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $dev = switchDevice((int) ($in['id'] ?? 0));
+    $key = (string) ($in['act'] ?? '');
+    if (!$dev['sw_driver']) {
+        throw new InvalidArgumentException('Erst den Treiber einrichten');
+    }
+    $acts = (switch_driver_class($dev['sw_driver']))::ACTIONS;
+    if (!isset($acts[$key])) {
+        throw new InvalidArgumentException('Das kann dieses Gerät nicht');
+    }
+    if ($key === 'reboot' && !is_admin()) {
+        throw new HttpError('Neu starten darf nur der Admin', 403);
+    }
+    if (in_array((string) $dev['sw_pass'], ['', '-'], true)) {
+        throw new InvalidArgumentException('Zum Schalten braucht netmon das Gerätepasswort des Routers – Gerät öffnen → Einstellungen → Passwort');
+    }
+    try {
+        return ['ok' => true, 'msg' => switch_router_action(db(), $dev, $key)];
+    } catch (RuntimeException $e) {
+        throw new InvalidArgumentException($e->getMessage());
+    }
 }
 
 // LEDs aller Switches, die das können, sofort an/aus

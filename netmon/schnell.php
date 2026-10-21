@@ -82,6 +82,11 @@ $nm = ['role' => $me['role'], 'user' => $me['username'], 'csrf' => csrf_token()]
               background: color-mix(in srgb, var(--nm-offline) 14%, transparent); border: 1px solid color-mix(in srgb, var(--nm-offline) 50%, transparent); }
     .q-actions { display: flex; gap: .5rem; margin-top: .8rem; }
     .q-actions .q-btn { flex: 1; }
+    .q-router { padding: .2rem 1rem; }
+    .q-rr { display: flex; align-items: center; gap: .9rem; padding: .75rem 0; border-top: 1px solid var(--bs-border-color); }
+    .q-rr:first-child { border-top: 0; }
+    .q-rr .q-btn { min-width: 8.5rem; min-height: 2.7rem; }
+    .q-rr-wrap .q-ask { margin-top: 0; padding-top: 0; border-top: 0; padding-bottom: .8rem; }
     .q-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
     .q-row .q-btn { width: 100%; }
     .q-ev { font-size: .88rem; padding: .5rem 0; border-top: 1px solid var(--bs-border-color); display: flex; gap: .6rem; align-items: baseline; }
@@ -128,6 +133,12 @@ $nm = ['role' => $me['role'], 'user' => $me['username'], 'csrf' => csrf_token()]
 
   <div class="q-grid">
   <div>
+    <div id="qRouterBox" hidden>
+      <div class="q-sec">Router <button class="q-help-btn" type="button" data-help="router" aria-label="Erklärung">?</button></div>
+      <div class="q-hint" id="hint-router" hidden>Das WLAN direkt vom Router ein- und ausschalten, das Gäste-WLAN für Besuch freigeben –
+        oder bei Internet-Problemen neu verbinden (das Internet ist dabei etwa eine halbe Minute weg).</div>
+      <div id="qRouters"></div>
+    </div>
     <div class="q-sec">Anschlüsse <button class="q-help-btn" type="button" data-help="ports" aria-label="Erklärung">?</button></div>
     <div class="q-hint" id="hint-ports" hidden>Hier schaltest du einzelne Anschlüsse am Switch aus und wieder an – zum Beispiel das
       WLAN im Kinderzimmer. Vor dem Sperren siehst du, welche Geräte dann kein Netz mehr haben.</div>
@@ -261,6 +272,43 @@ function renderPorts() {
   }).join('');
 }
 
+// Router-Karte: WLAN, Gäste-WLAN, neu verbinden – mit Rückfrage, wer betroffen ist
+function chips(list) {
+  const on = list.filter((a) => a.online);
+  const show = (on.length ? on : list).slice(0, 10);
+  const more = (on.length ? on.length : list.length) - show.length;
+  return show.length ? `<div class="q-chips">${show.map((a) => `<span class="q-chip ${a.me ? 'me' : a.online ? 'on' : 'off'}">${esc(a.name)}${a.me ? ' (du)' : ''}</span>`).join('')}
+    ${more > 0 ? `<span class="q-chip off">und ${more} weitere</span>` : ''}</div>` : '';
+}
+function renderRouters() {
+  const rs = data.routers || [];
+  $('#qRouterBox').hidden = !rs.length;
+  $('#qRouters').innerHTML = rs.map((r, i) => {
+    const can = data.canSwitch && r.canAct;
+    const row = (title, state, btn, key, ask) => `<div class="q-rr-wrap"><div class="q-rr">
+        <div class="q-main"><div class="q-title" style="font-size:1rem">${title}</div><div class="q-state${state.off ? ' off' : ''}">${esc(state.text)}</div></div>
+        ${asking === key ? '' : btn}</div>${asking === key ? ask : ''}</div>`;
+    const yesNo = (k, label) => `<div class="q-actions"><button class="q-btn lock" type="button" data-ract="${k}" data-r="${i}">${label}</button>
+        <button class="q-btn plain" type="button" data-do="cancel">Abbrechen</button></div>`;
+    const btn = (k, label, cls) => can ? `<button class="q-btn ${cls}" type="button" data-rask="${k}" data-r="${i}">${label}</button>` : '';
+    const wl = r.wlan === null ? { text: 'Zustand unbekannt' } : r.wlan ? { text: `An · ${plural(r.wifiAffected.filter((a) => a.online).length, 'Gerät', 'Geräte')} verbunden` } : { text: 'Aus – kein WLAN vom Router', off: true };
+    const wlanAsk = `<div class="q-ask">${r.self ? `<div class="q-warn"><b>Achtung, das betrifft dich selbst:</b> du bist über dieses WLAN verbunden.
+        Danach hast du hier kein Netz mehr – einschalten geht dann nur von einem anderen Gerät oder über Mobilfunk.</div>` : ''}
+        <div class="h">${r.wifiAffected.some((a) => a.online) ? 'Danach haben kein Netz mehr:' : 'Gerade ist niemand in diesem WLAN.'}</div>
+        ${chips(r.wifiAffected)}${yesNo('wlan_off', r.self ? 'Trotzdem ausschalten' : 'Ja, ausschalten')}</div>`;
+    const recAsk = `<div class="q-ask"><div class="h">Das Internet ist etwa eine halbe Minute weg – für alle im Haus.
+        ${data.where.remote ? 'Du bist von unterwegs verbunden: netmon ist in der Zeit auch für dich weg und meldet sich danach wieder.' : ''}</div>
+        ${yesNo('reconnect', 'Ja, neu verbinden')}</div>`;
+    return `<div class="q-card q-router${r.wlan === 0 ? ' is-off' : ''}">
+      ${row(`WLAN${r.ssid ? ` „${esc(r.ssid)}“` : ''}`, wl, r.wlan === 0 ? btn('wlan_on', 'Einschalten', 'unlock') : btn('wlan_off', 'Ausschalten', 'lock'), r.id + ':wlan_off', wlanAsk)}
+      ${row(`Gäste-WLAN${r.guestSsid ? ` „${esc(r.guestSsid)}“` : ''}`, r.guest === null ? { text: 'Zustand unbekannt' } : { text: r.guest ? 'An – Besuch kann sich verbinden' : 'Aus' },
+            r.guest ? btn('guest_off', 'Ausschalten', 'plain') : btn('guest_on', 'Einschalten', 'unlock'), '', '')}
+      ${row('Internet neu verbinden', { text: 'Hilft, wenn das Internet hängt' }, btn('reconnect', 'Neu verbinden', 'plain'), r.id + ':reconnect', recAsk)}
+      ${!r.canAct && data.canSwitch ? `<div class="q-note" style="margin-bottom:.8rem">Zum Schalten braucht netmon das Gerätepasswort von ${esc(r.name)} – das trägt der Admin in der Profi-Ansicht ein.</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
 function renderSide() {
   $('#qLedBox').hidden = !data.canSwitch || !data.leds.count;
   $('#qLedInfo').textContent = `${plural(data.leds.count, 'Switch', 'Switches')}` +
@@ -275,13 +323,14 @@ const HELP = [
   ['Warum steht bei einem Anschluss „geschützt“?', 'Dahinter hängt ein weiterer Switch, der Router oder netmon selbst. Gesperrt wäre ein ganzes Haus offline – oder netmon könnte den Anschluss nicht mehr freigeben. Deshalb geht das hier nicht.'],
   ['Was bedeutet die Ampel?', 'Grün: Das Internet läuft, regelmäßig gemessen. Gelb: langsam, oder der letzte Test ist fehlgeschlagen – meist ist das nach ein paar Minuten vorbei. Rot: Der Router meldet keine Verbindung ins Internet.'],
   ['Ich habe mich selbst ausgesperrt', 'Nimm ein Gerät, das nicht an diesem Anschluss hängt – oder am Handy das WLAN ausschalten und netmon über Mobilfunk öffnen: ' + location.origin + location.pathname.replace(/[^/]*$/, '') + ' . Dort auf „Freigeben“ tippen.'],
+  ['Was macht „Internet neu verbinden“?', 'Der Router trennt die Verbindung ins Internet und baut sie gleich wieder auf – wie Stecker ziehen, nur schneller. Das hilft oft, wenn alles hängt. Für etwa eine halbe Minute ist das Internet für alle weg.'],
   ['Wie kommt ein neuer Anschluss hierher?', 'Das macht der Admin: in der Profi-Ansicht den Switch öffnen und beim Anschluss auf „☆ Schnellzugriff“ tippen. Den Namen (z. B. „WLAN Kinderzimmer“) trägt er am besten am Switch als Port-Beschreibung ein.'],
 ];
 $('#qHelp').innerHTML = HELP.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('');
 
 function render() {
   $('#qHi').textContent = `Hallo ${data.user}`;
-  renderAmp(); renderPorts(); renderSide();
+  renderAmp(); renderRouters(); renderPorts(); renderSide();
 }
 
 async function load() {
@@ -300,14 +349,34 @@ async function switchPort(p, on, btn) {
   load();
 }
 
+async function routerAct(r, k, btn) {
+  busy = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'einen Moment …'; }
+  try {
+    const res = await call('router_action', { id: r.id, act: k });
+    msg(k === 'reconnect' ? 'Verbindet neu – das Internet ist gleich wieder da.' : res.msg);
+  } catch (err) { msg(err.message); }
+  asking = null; busy = false;
+  load();
+}
+
 document.addEventListener('click', (e) => {
   const h = e.target.closest('[data-help]');
   if (h) { const el = $('#hint-' + h.dataset.help); el.hidden = !el.hidden; return; }
+  const ra = e.target.closest('[data-rask]');
+  if (ra) {
+    const r = data.routers[Number(ra.dataset.r)], k = ra.dataset.rask;
+    if (k === 'wlan_off' || k === 'reconnect') { asking = r.id + ':' + k; renderRouters(); return; }   // erst zeigen, was passiert
+    routerAct(r, k, ra);
+    return;
+  }
+  const rx = e.target.closest('[data-ract]');
+  if (rx) { routerAct(data.routers[Number(rx.dataset.r)], rx.dataset.ract, rx); return; }
   const d = e.target.closest('[data-do]');
   if (d) {
+    if (d.dataset.do === 'cancel') { asking = null; renderRouters(); renderPorts(); return; }
     const card = d.closest('.q-port');
     const p = data.ports[Number(card.dataset.i)];
-    if (d.dataset.do === 'cancel') { asking = null; renderPorts(); return; }
     switchPort(p, false, d);
     return;
   }
