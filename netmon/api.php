@@ -43,10 +43,10 @@ try {
         'save_room_layout'=> admin() ?? saveRoomLayout(body()),
         'switch_poll'     => admin() ?? switchPoll(body()),
         'switch_cable'    => admin() ?? switchCable(body()),
-        'switch_port'     => admin() ?? switchPortSet(body()),
+        'switch_port'     => family() ?? switchPortSet(body()),
         'quick'           => quick(),
         'quick_pin'       => admin() ?? quickPin(body()),
-        'leds_all'        => admin() ?? ledsAll(body()),
+        'leds_all'        => family() ?? ledsAll(body()),
         'connect'         => admin() ?? connectDevices(body()),
         'dismiss_suggestion' => admin() ?? dismissSuggestion(body()),
         'switch_drivers'  => admin() ?? switchDriverList(),
@@ -81,6 +81,14 @@ function admin(): ?array
 {
     if (!is_admin()) {
         throw new HttpError('Nur für Admins', 403);
+    }
+    return null;
+}
+
+function family(): ?array
+{
+    if (!can_switch()) {
+        throw new HttpError('Dein Konto darf nur ansehen – zum Sperren bitte den Admin fragen', 403);
     }
     return null;
 }
@@ -683,13 +691,76 @@ function quick(): array
 {
     $db = db();
     $devs = [];
-    foreach ($db->query('SELECT id, INET_NTOA(ip) AS ip, name, hostname, mac, vendor, device_type, parent_id, port, is_online, location, sw_driver
+    foreach ($db->query('SELECT id, INET_NTOA(ip) AS ip, name, hostname, mac, vendor, device_type, parent_id, port, is_online, location,
+                                sw_driver, COALESCE(LENGTH(sw_pass), 0) > 0 AS has_pass, is_virtual
                            FROM devices') as $d) {
         $devs[(int) $d['id']] = $d;
     }
     $ports = switchPorts();
     require_once NETMON_DIR . '/collector/switch_drivers.php';
     $guard = switch_protected_ports($db);
+
+    // Wer hängt woran: Kabel (parent_id) und WLAN (Client-Liste des Access Points)
+    $kids = [];
+    foreach ($devs as $d) {
+        if ($d['parent_id'] !== null) {
+            $kids[(int) $d['parent_id']][] = (int) $d['id'];
+        }
+    }
+    $byMac = [];
+    foreach ($devs as $d) {
+        if ($d['mac']) {
+            $byMac[strtoupper($d['mac'])] = (int) $d['id'];
+        }
+    }
+    $wifiOf = [];   // AP-ID => Geräte-IDs im WLAN
+    $apOf = [];     // Geräte-ID => AP-ID
+    foreach (wifiByMac() as $mac => $w) {
+        $id = $byMac[strtoupper($mac)] ?? null;
+        if ($id !== null && isset($devs[$w['apId']]) && !isset($kids[$id]) && $devs[$id]['parent_id'] === null) {
+            $wifiOf[$w['apId']][] = $id;
+            $apOf[$id] = $w['apId'];
+        }
+    }
+    $below = function (array $start) use ($kids, $wifiOf): array {
+        $seen = [];
+        $stack = $start;
+        while ($stack) {
+            $x = array_pop($stack);
+            if (isset($seen[$x])) {
+                continue;
+            }
+            $seen[$x] = true;
+            array_push($stack, ...($kids[$x] ?? []), ...($wifiOf[$x] ?? []));
+        }
+        return array_keys($seen);
+    };
+
+    // Welches Gerät benutzt gerade netmon? (nur im Heimnetz erkennbar)
+    $me = null;
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    foreach ($devs as $d) {
+        if ($ip !== '' && $d['ip'] === $ip && !in_array($ip, switch_own_ips_safe(), true)) {
+            $me = (int) $d['id'];
+            break;
+        }
+    }
+    $via = null;
+    if ($me !== null) {
+        $d = $devs[$me];
+        if (isset($apOf[$me])) {
+            $via = 'WLAN von ' . displayName($devs[$apOf[$me]]);
+        } elseif ($d['parent_id'] !== null && isset($devs[(int) $d['parent_id']])) {
+            $via = 'Kabel an ' . displayName($devs[(int) $d['parent_id']]) . ($d['port'] !== null && $d['port'] !== '' ? ' (Anschluss ' . $d['port'] . ')' : '');
+        }
+    }
+    $where = $me !== null ? ['device' => displayName($devs[$me]), 'via' => $via]
+        : ['device' => null, 'via' => null, 'remote' => !preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', $ip)];
+
+    $ageOf = [];   // Sekunden seit der letzten Abfrage je Port (in der Datenbank gerechnet – PHP und MariaDB können verschiedene Zeitzonen haben)
+    foreach ($db->query('SELECT device_id, port, TIMESTAMPDIFF(SECOND, updated, NOW()) AS age FROM switch_ports') as $r) {
+        $ageOf[$r['device_id'] . ':' . $r['port']] = (int) $r['age'];
+    }
     $out = [];
     foreach (quickList() as [$id, $p]) {
         $sw = $devs[(int) $id] ?? null;
@@ -702,17 +773,42 @@ function quick(): array
                 $pi = $x;
             }
         }
+        $direct = [];
         $who = [];
         foreach ($devs as $d) {
             if ((int) $d['parent_id'] === (int) $id && (string) $d['port'] === (string) $p) {
                 $who[] = displayName($d);
+                $direct[] = (int) $d['id'];
             }
         }
+        $aff = [];
+        foreach ($below($direct) as $x) {
+            if (!$devs[$x]['is_virtual']) {
+                $aff[] = ['name' => displayName($devs[$x]), 'online' => (bool) $devs[$x]['is_online'], 'me' => $x === $me];
+            }
+        }
+        usort($aff, fn($a, $b) => [$b['me'], $b['online'], $a['name']] <=> [$a['me'], $a['online'], $b['name']]);
+        // Geht das Schalten überhaupt? Gründe in Alltagssprache
+        $why = null;
+        if (!$sw['has_pass'] || !$sw['sw_driver']) {
+            $why = 'Der Switch „' . displayName($sw) . '“ ist in netmon noch nicht eingerichtet (Passwort fehlt).';
+        } else {
+            try {
+                if (!switch_can_portoff(switch_driver_class($sw['sw_driver']))) {
+                    $why = 'Der Switch „' . displayName($sw) . '“ kann Anschlüsse nicht abschalten.';
+                }
+            } catch (RuntimeException $e) {
+                $why = 'Unbekannter Switch-Typ.';
+            }
+        }
+        $stale = $pi === null || ($ageOf[$id . ':' . $p] ?? 0) > 600;
         $out[] = ['id' => (int) $id, 'p' => (int) $p, 'switch' => displayName($sw), 'location' => $sw['location'],
+                  'label' => ($pi['desc'] ?? '') !== '' ? $pi['desc'] : ($who ? implode(', ', $who) : 'Anschluss ' . $p),
                   'desc' => $pi['desc'] ?? null, 'who' => $who, 'link' => $pi['link'] ?? false, 'off' => $pi['off'] ?? false,
-                  'speed' => $pi['speed'] ?? null, 'updated' => $pi['updated'] ?? null, 'guard' => $guard[$id . ':' . $p] ?? null];
+                  'speed' => $pi['speed'] ?? null, 'updated' => $pi['updated'] ?? null, 'guard' => $guard[$id . ':' . $p] ?? null,
+                  'affected' => $aff, 'onlineCount' => count(array_filter($aff, fn($a) => $a['online'])),
+                  'self' => in_array(true, array_column($aff, 'me'), true), 'cannot' => $why, 'stale' => $stale];
     }
-    require_once NETMON_DIR . '/collector/switch_drivers.php';
     $ledDevs = 0;
     foreach ($db->query("SELECT sw_driver FROM devices WHERE sw_pass IS NOT NULL AND sw_pass <> '' AND sw_driver IS NOT NULL") as $r) {
         try {
@@ -721,10 +817,70 @@ function quick(): array
         }
     }
     $s = settings();
-    $ev = $db->query("SELECT e.event, e.info, e.created_at, COALESCE(d.name, d.hostname, INET_NTOA(d.ip)) AS label
-                        FROM device_events e LEFT JOIN devices d ON d.id = e.device_id ORDER BY e.created_at DESC, e.id DESC LIMIT 6")->fetchAll();
-    return ['ports' => $out, 'status' => status(), 'leds' => ['count' => $ledDevs, 'off' => $s['led_off'], 'on' => $s['led_on']],
-            'events' => $ev, 'admin' => is_admin()];
+    $ev = $db->query("SELECT e.device_id, e.event, e.info, e.created_at, COALESCE(d.name, d.hostname, INET_NTOA(d.ip)) AS label, d.device_type
+                        FROM device_events e LEFT JOIN devices d ON d.id = e.device_id ORDER BY e.created_at DESC, e.id DESC LIMIT 60")->fetchAll();
+    // Für die einfache Ansicht: nur Sperren/Freigeben und Ausfälle von Router, Switches, Access Points – in Alltagssprache
+    $labelOf = [];
+    foreach ($out as $q) {
+        $labelOf[$q['id'] . ':' . $q['p']] = $q['label'];
+    }
+    $simple = [];
+    foreach ($ev as $e) {
+        if ($e['event'] === 'port' && preg_match('/^Port (\d+) (gesperrt|freigegeben)$/', (string) $e['info'], $m)) {
+            $what = $labelOf[$e['device_id'] . ':' . $m[1]] ?? ($e['label'] . ', Anschluss ' . $m[1]);
+            $simple[] = ['t' => $e['created_at'], 'text' => "„{$what}“ {$m[2]}", 'kind' => $m[2] === 'gesperrt' ? 'off' : 'on'];
+        } elseif (in_array($e['event'], ['offline', 'online'], true) && in_array($e['device_type'], ['router', 'switch', 'ap'], true)) {
+            $simple[] = ['t' => $e['created_at'], 'text' => $e['label'] . ($e['event'] === 'offline' ? ' ist ausgefallen' : ' läuft wieder'),
+                         'kind' => $e['event'] === 'offline' ? 'bad' : 'on'];
+        }
+        if (count($simple) >= 6) {
+            break;
+        }
+    }
+    return ['ports' => $out, 'status' => status(), 'internet' => internetState(), 'where' => $where,
+            'leds' => ['count' => $ledDevs, 'off' => $s['led_off'], 'on' => $s['led_on']],
+            'events' => array_slice($ev, 0, 6), 'simpleEvents' => $simple,
+            'admin' => is_admin(), 'canSwitch' => can_switch(), 'user' => current_user()['username']];
+}
+
+function switch_own_ips_safe(): array
+{
+    return function_exists('netmon_own_ips') ? netmon_own_ips() : [];
+}
+
+// Ampel für die einfache Ansicht: läuft das Internet?
+function internetState(): array
+{
+    $db = db();
+    $s = settings();
+    $dsl = null;
+    try {
+        $r = $db->query("SELECT m.v, m.ts, COALESCE(d.name, d.hostname) AS router FROM dev_metrics m JOIN devices d ON d.id = m.device_id
+                          WHERE m.k = 'dsl_ok' AND m.ts > NOW() - INTERVAL 15 MINUTE ORDER BY m.ts DESC LIMIT 1")->fetch();
+        if ($r) {
+            $dsl = (int) $r['v'];
+        }
+    } catch (PDOException $e) {
+    }
+    $sp = $db->query('SELECT created_at, download_mbps, upload_mbps, ping_ms, error, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age
+                        FROM speedtests ORDER BY created_at DESC, id DESC LIMIT 1')->fetch() ?: null;
+    $fresh = $sp && (int) $sp['age'] <= max(30, 3 * (int) $s['speedtest_interval']);
+    if ($dsl === 0) {
+        return ['state' => 'bad', 'text' => 'Internet gestört', 'detail' => 'Der Router meldet: keine DSL-Verbindung.'];
+    }
+    if ($fresh && $sp['error']) {
+        return ['state' => 'warn', 'text' => 'Internet gestört?', 'detail' => 'Der letzte Geschwindigkeitstest um ' . substr($sp['created_at'], 11, 5) . ' ist fehlgeschlagen.'];
+    }
+    if ($fresh) {
+        $slow = (float) $sp['download_mbps'] < 5;
+        return ['state' => $slow ? 'warn' : 'ok', 'text' => $slow ? 'Internet langsam' : 'Internet läuft',
+                'detail' => sprintf('%s Mbit/s runter · %s Mbit/s hoch · gemessen %s Uhr', round((float) $sp['download_mbps']),
+                                    round((float) $sp['upload_mbps']), substr($sp['created_at'], 11, 5))];
+    }
+    if ($dsl === 1) {
+        return ['state' => 'ok', 'text' => 'Internet läuft', 'detail' => 'Der Router ist mit dem Internet verbunden.'];
+    }
+    return ['state' => 'unknown', 'text' => 'Internet: keine aktuelle Messung', 'detail' => 'Es gibt keinen aktuellen Geschwindigkeitstest.'];
 }
 
 // Port an den Schnellzugriff heften / lösen
@@ -996,9 +1152,9 @@ function zoneDelete(array $in): array
 // Benutzer
 function usersGet(): array
 {
-    $rows = db()->query('SELECT id, username, role, created_at, last_login FROM users ORDER BY username')->fetchAll();
+    $rows = db()->query('SELECT id, username, role, ui_mode, created_at, last_login FROM users ORDER BY username')->fetchAll();
     return array_map(fn($u) => [
-        'id' => (int) $u['id'], 'username' => $u['username'], 'role' => $u['role'],
+        'id' => (int) $u['id'], 'username' => $u['username'], 'role' => $u['role'], 'mode' => $u['ui_mode'],
         'created' => $u['created_at'], 'lastLogin' => $u['last_login'],
         'self' => (int) $u['id'] === (int) current_user()['id'],
     ], $rows);
@@ -1012,7 +1168,8 @@ function adminCount(): int
 function userSave(array $in): array
 {
     $id   = (int) ($in['id'] ?? 0);
-    $role = ($in['role'] ?? 'viewer') === 'admin' ? 'admin' : 'viewer';
+    $role = in_array($in['role'] ?? '', ['admin', 'family', 'viewer'], true) ? $in['role'] : 'viewer';
+    $mode = in_array($in['mode'] ?? '', ['einfach', 'profi'], true) ? $in['mode'] : ($role === 'admin' ? 'profi' : 'einfach');
     $pass = (string) ($in['password'] ?? '');
     if ($pass !== '' && mb_strlen($pass) < 8) {
         throw new InvalidArgumentException('Das Passwort braucht mindestens 8 Zeichen');
@@ -1027,7 +1184,7 @@ function userSave(array $in): array
         if ($old === 'admin' && $role !== 'admin' && adminCount() <= 1) {
             throw new InvalidArgumentException('Es muss mindestens ein Admin bleiben');
         }
-        db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$role, $id]);
+        db()->prepare('UPDATE users SET role = ?, ui_mode = ? WHERE id = ?')->execute([$role, $mode, $id]);
         if ($pass !== '') {
             db()->prepare('UPDATE users SET pass_hash = ? WHERE id = ?')->execute([password_hash($pass, PASSWORD_DEFAULT), $id]);
         }
@@ -1044,8 +1201,8 @@ function userSave(array $in): array
         if ((int) $st->fetchColumn() > 0) {
             throw new InvalidArgumentException('Diesen Benutzernamen gibt es schon');
         }
-        db()->prepare('INSERT INTO users (username, pass_hash, role, created_at) VALUES (?, ?, ?, NOW())')
-            ->execute([$name, password_hash($pass, PASSWORD_DEFAULT), $role]);
+        db()->prepare('INSERT INTO users (username, pass_hash, role, ui_mode, created_at) VALUES (?, ?, ?, ?, NOW())')
+            ->execute([$name, password_hash($pass, PASSWORD_DEFAULT), $role, $mode]);
     }
     return ['ok' => true];
 }

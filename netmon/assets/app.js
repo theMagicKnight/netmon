@@ -2254,7 +2254,7 @@ async function loadSettings() {
   $('#userList').innerHTML = users.map((u) => `<div class="item">
       <span class="avatar" style="width:2rem;height:2rem;font-size:.85rem">${esc(u.username.slice(0, 1))}</span>
       <div class="main"><div class="text-truncate">${esc(u.username)}${u.self ? ' <span class="pill pill-accent ms-1">Du</span>' : ''}</div>
-        <div class="meta">${u.role === 'admin' ? 'Admin' : 'Betrachter'} · zuletzt angemeldet ${u.lastLogin ? esc(fmtTime(u.lastLogin, true)) : 'noch nie'}</div></div>
+        <div class="meta">${{ admin: 'Admin', family: 'Familie', viewer: 'Betrachter' }[u.role] || u.role} · ${u.mode === 'einfach' ? 'einfache Ansicht' : 'Profi-Ansicht'} · zuletzt angemeldet ${u.lastLogin ? esc(fmtTime(u.lastLogin, true)) : 'noch nie'}</div></div>
       <button class="btn btn-ghost btn-sm" type="button" data-user="${u.id}">Bearbeiten</button></div>`).join('');
   setData.users = users;
 }
@@ -2351,7 +2351,8 @@ if (IS_ADMIN) {
     f.id.value = u?.id || '';
     f.username.value = u?.username || '';
     f.username.disabled = !!u;
-    f.role.value = u?.role || 'viewer';
+    f.role.value = u?.role || 'family';
+    f.mode.value = u?.mode || 'einfach';
     f.password.value = '';
     $('#uPassHint').textContent = u ? 'Leer lassen, um das Passwort nicht zu ändern.' : 'Mindestens 8 Zeichen.';
     $('#userModalTitle').textContent = u ? 'Benutzer bearbeiten' : 'Neuer Benutzer';
@@ -2360,6 +2361,8 @@ if (IS_ADMIN) {
     userModal.show();
   };
   $('#userAdd').addEventListener('click', () => openUser(null));
+  // Neue Rolle gewählt: passende Ansicht vorschlagen (Admin → Profi, sonst Einfach)
+  $('#userForm').role.addEventListener('change', (e) => { e.target.form.mode.value = e.target.value === 'admin' ? 'profi' : 'einfach'; });
   $('#userList').addEventListener('click', (e) => {
     const b = e.target.closest('[data-user]');
     if (b) openUser(setData.users.find((u) => u.id === Number(b.dataset.user)));
@@ -2368,7 +2371,7 @@ if (IS_ADMIN) {
     e.preventDefault();
     const f = e.target;
     try {
-      await post('save_user', { id: f.id.value, username: f.username.value, role: f.role.value, password: f.password.value });
+      await post('save_user', { id: f.id.value, username: f.username.value, role: f.role.value, mode: f.mode.value, password: f.password.value });
       userModal.hide();
       notify('Benutzer gespeichert');
       await loadSettings();

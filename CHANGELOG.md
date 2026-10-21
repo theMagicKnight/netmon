@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.10.0 – 2026-10-21
+
+- **Einfache Ansicht** für Einsteiger (bisher „Schnellzugriff“, ⚡): Internet-Ampel, „Du bist hier mit … über …“,
+  Anschlüsse in Alltagssprache. Vor dem Sperren zeigt sie, welche Geräte danach kein Netz mehr haben (auch WLAN-Geräte
+  eines Access Points dahinter), und warnt deutlich, wenn das eigene Gerät daran hängt. Gründe, warum etwas nicht geht
+  („geschützt“, „Switch nicht eingerichtet“, „nur ansehen“), stehen direkt dabei; dazu eine Hilfe mit den häufigsten Fragen
+  und Ereignisse nur noch zu Sperren/Freigeben und Ausfällen von Router, Switches und Access Points.
+- Die bisherige Oberfläche heißt **Profi-Ansicht**. netmon merkt sich je Benutzer die zuletzt benutzte Ansicht.
+- Neue Rolle **„Familie“**: ansehen, Anschlüsse sperren/freigeben und Switch-Lichter schalten – aber nichts einstellen.
+  Beim Anlegen eines Benutzers lässt sich die Start-Ansicht wählen. Datenbank-Version 12 (wird selbst ergänzt).
+- `install.sh --with-internet`: Meldet Strato `nohost`, gibt es nur noch eine Warnung, das Zertifikat wird trotzdem geholt.
+
 ## 1.9.1 – 2026-10-21
 
 - DynDNS meldet jetzt IPv4 **und** die feste IPv6 des Rechners an Strato (Strato hatte die IPv6 sonst einmalig selbst

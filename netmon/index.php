@@ -1,6 +1,13 @@
 <?php
 require __DIR__ . '/db.php';
 $me      = require_login_page();
+// Ansicht: die zuletzt benutzte wird gemerkt; „einfach“ startet im Schnellzugriff
+if (($_GET['ansicht'] ?? '') === 'profi') {
+    set_ui_mode('profi');
+} elseif (($me['ui_mode'] ?? 'profi') === 'einfach') {
+    header('Location: schnell.php');
+    exit;
+}
 $s       = settings();
 $speedOn = (bool) $s['speedtest_enabled'];
 $admin   = $me['role'] === 'admin';
@@ -89,11 +96,11 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
       <span class="avatar"><?= $e(mb_substr($me['username'], 0, 1)) ?></span>
       <div class="min-w-0">
         <div class="name text-truncate"><?= $e($me['username']) ?></div>
-        <div class="role"><?= $admin ? 'Administrator' : 'Betrachter' ?></div>
+        <div class="role"><?= $e(ROLE_LABELS[$me['role']] ?? $me['role']) ?></div>
       </div>
     </div>
     <div class="side-icons">
-      <a class="btn-icon" href="schnell.php" aria-label="Schnellzugriff" title="Schnellzugriff"><?= $svg('bolt') ?></a>
+      <a class="btn-icon" href="schnell.php?ansicht=einfach" aria-label="Einfache Ansicht" title="Einfache Ansicht (Schnellzugriff)"><?= $svg('bolt') ?></a>
       <button class="btn-icon theme-btn" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel"><span class="i-moon"><?= $svg('moon') ?></span><span class="i-sun"><?= $svg('sun') ?></span></button>
       <button class="btn-icon refresh-btn" type="button" aria-label="Aktualisieren" title="Aktualisieren"><?= $svg('reload') ?></button>
       <a class="btn-icon danger" href="logout.php" aria-label="Abmelden" title="Abmelden"><?= $svg('out') ?></a>
@@ -113,7 +120,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
         <div id="lastScan" class="small text-body-secondary text-truncate mt-1"></div>
       </div>
       <div class="d-flex gap-2 d-lg-none">
-        <a class="btn-icon" href="schnell.php" aria-label="Schnellzugriff"><?= $svg('bolt') ?></a>
+        <a class="btn-icon" href="schnell.php?ansicht=einfach" aria-label="Einfache Ansicht" title="Einfache Ansicht"><?= $svg('bolt') ?></a>
         <button class="btn-icon refresh-btn" type="button" aria-label="Aktualisieren"><?= $svg('reload') ?></button>
         <button class="btn-icon theme-btn" type="button" aria-label="Hell/Dunkel umschalten"><span class="i-moon"><?= $svg('moon') ?></span><span class="i-sun"><?= $svg('sun') ?></span></button>
       </div>
@@ -539,8 +546,15 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
         <div class="mb-3"><label class="form-label small-label" for="uRole">Rolle</label>
           <select class="form-select" id="uRole" name="role">
             <option value="viewer">Betrachter – darf alles ansehen</option>
+            <option value="family">Familie – darf ansehen und Anschlüsse sperren/freigeben</option>
             <option value="admin">Admin – darf auch bearbeiten und einstellen</option>
           </select></div>
+        <div class="mb-3"><label class="form-label small-label" for="uMode">Ansicht beim Start</label>
+          <select class="form-select" id="uMode" name="mode">
+            <option value="einfach">Einfach – Internet-Ampel und große Sperr-Knöpfe</option>
+            <option value="profi">Profi – Netzwerk-Baum, Switches, alle Einstellungen</option>
+          </select>
+          <div class="form-text">Jeder kann jederzeit umschalten; netmon merkt sich die zuletzt benutzte Ansicht.</div></div>
         <div class="mb-1"><label class="form-label small-label" for="uPass">Passwort</label>
           <input class="form-control" type="password" id="uPass" name="password" autocomplete="new-password" minlength="8">
           <div class="form-text" id="uPassHint">Mindestens 8 Zeichen.</div></div>

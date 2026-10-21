@@ -35,7 +35,7 @@ function netmon_pdo(array $cfg): PDO
 }
 
 // Datenbank automatisch auf den aktuellen Stand bringen (neue Spalten), einmal pro Version
-const NETMON_SCHEMA = 11;
+const NETMON_SCHEMA = 12;
 
 function netmon_upgrade(PDO $db): void
 {
@@ -115,6 +115,13 @@ function netmon_upgrade(PDO $db): void
     // Version 11: fehlgeschlagene Anmeldungen (Schutz gegen Passwort-Raten, wenn netmon aus dem Internet erreichbar ist)
     if ($v < 11) {
         $db->exec('CREATE TABLE IF NOT EXISTS login_fails (   ip  VARCHAR(45) NOT NULL,   ts  DATETIME    NOT NULL,   INDEX idx_ip_ts (ip, ts), INDEX idx_ts (ts) ) ENGINE=InnoDB');
+    }
+    // Version 12: Rolle „Familie“ (ansehen + Anschlüsse sperren) und gemerkte Ansicht je Benutzer (einfach/profi)
+    if ($v < 12) {
+        $db->exec("ALTER TABLE users MODIFY role ENUM('admin','family','viewer') NOT NULL DEFAULT 'viewer'");
+        if (!$db->query("SHOW COLUMNS FROM users LIKE 'ui_mode'")->fetch()) {
+            $db->exec("ALTER TABLE users ADD COLUMN ui_mode ENUM('einfach','profi') NOT NULL DEFAULT 'profi' AFTER role");
+        }
     }
     netmon_set($db, 'schema_version', NETMON_SCHEMA);
 }

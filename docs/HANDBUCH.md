@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.9 · Oktober 2026
+Stand: Version 1.10 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -292,16 +292,36 @@ stimmt der Baum, stimmt der Schutz.
 0 14 * * 1-5  root  /usr/bin/php /var/www/html/netmon/collector/port.php an  192.168.2.10 7
 ```
 
-### 7.3 Schnellzugriff (Handy)
+### 7.3 Einfache Ansicht (Schnellzugriff)
 
-`http://<server>/netmon/schnell.php` – oder oben auf das ⚡-Symbol.
+Für alle, die sich mit Netzwerken nicht auskennen – und fürs Handy. Aufruf: ⚡-Symbol in der Profi-Ansicht
+(oder `…/netmon/schnell.php`). Zurück über „Profi-Ansicht“ unten. **netmon merkt sich je Benutzer die zuletzt
+benutzte Ansicht** und startet beim nächsten Mal wieder darin.
 
-- große **Sperren/Freigeben**-Knöpfe für angeheftete Ports
-- **LEDs aus/an** für alle Switches
-- Geräte online, letzter Speedtest, gesperrte Ports, letzter Scan, letzte Ereignisse
-- aktualisiert sich alle 30 Sekunden
-- **Ports anheften:** Switch öffnen → Port-Liste → **☆ Schnellzugriff** (★ = angeheftet)
-- Am PC: Port-Kacheln nebeneinander, rechts LEDs und Ereignisse
+- **Ampel:** „Internet läuft“ (grün, mit gemessener Geschwindigkeit), „langsam / Test fehlgeschlagen“ (gelb),
+  „gestört“ (rot, Router meldet keine DSL-Verbindung).
+- **Wo bin ich:** „Du bist hier mit *Handy* – über WLAN von *TP-Link C80*“ bzw. „von unterwegs“.
+- **Anschlüsse** in Alltagssprache („An · 3 Geräte online“, „Gesperrt – hier gibt es kein Netz“).
+  Beim Sperren erscheint zuerst, **wer danach kein Netz mehr hat** – auch die WLAN-Geräte eines Access Points
+  dahinter. Hängt das eigene Gerät daran, warnt netmon deutlich: von diesem Gerät aus ließe sich der Anschluss
+  danach nicht mehr freigeben.
+- Geht etwas nicht, steht der Grund dabei: „geschützt“ (dahinter hängt ein Switch, der Router oder netmon),
+  „Switch nicht eingerichtet“, „Switch hat sich länger nicht gemeldet“, „nur ansehen“.
+- **Lichter an den Switches** aus/an.
+- **Was zuletzt passiert ist:** nur Sperren/Freigeben und Ausfälle von Router, Switches, Access Points.
+- **Hilfe** mit den häufigsten Fragen (auch: „Ich habe mich selbst ausgesperrt“).
+- **Anschlüsse hinzufügen** (Admin): Profi-Ansicht → Switch öffnen → Port-Liste → **☆ Schnellzugriff**.
+  Als Name erscheint die Port-Beschreibung vom Switch – also dort z. B. „WLAN Kinderzimmer“ eintragen.
+
+**Benutzer und Rollen** (Einstellungen → Benutzer):
+
+| Rolle | darf | Start-Ansicht |
+|---|---|---|
+| Admin | alles | Profi |
+| Familie | ansehen, Anschlüsse sperren/freigeben, Lichter schalten | Einfach |
+| Betrachter | nur ansehen | Einfach |
+
+Die Start-Ansicht ist nur ein Vorschlag – jeder kann umschalten.
 
 ---
 
@@ -430,7 +450,7 @@ IP fällt sofort auf.
 | | Scan-Protokoll | 30 Tage |
 | | Verlauf Switches & Access Points (je Minute) | 7 Tage |
 | Bereiche | IP-Bereiche mit Typ (Kabel, WLAN, Labor, DHCP) und übergeordnetem Gerät | – |
-| Benutzer | Admin (darf alles) / Betrachter (nur ansehen) | – |
+| Benutzer | Admin (darf alles) / Familie (ansehen + Anschlüsse sperren) / Betrachter (nur ansehen); Start-Ansicht einfach/profi | – |
 
 ---
 
@@ -509,7 +529,7 @@ install.sh                 Installation/Update
 docs/                      Handbuch, Bilder
 ```
 
-### 13.3 Datenbank (Version 11)
+### 13.3 Datenbank (Version 12)
 
 | Tabelle | Inhalt |
 |---|---|
@@ -518,7 +538,7 @@ docs/                      Handbuch, Bilder
 | `scans` | Scan-Protokoll |
 | `speedtests`, `speedtests_daily` | Speedtest roh und Tageswerte |
 | `zones` | IP-Bereiche |
-| `users` | Benutzer (Admin/Betrachter) |
+| `users` | Benutzer (Admin/Familie/Betrachter, zuletzt benutzte Ansicht) |
 | `settings` | Einstellungen (Schlüssel/Wert) |
 | `switch_ports` | aktueller Port-Status je Switch (inkl. `admin_off` = gesperrt) |
 | `port_history` | Datenrate je Port und Minute |

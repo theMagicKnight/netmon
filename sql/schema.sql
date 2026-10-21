@@ -101,7 +101,8 @@ CREATE TABLE users (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username    VARCHAR(64)  NOT NULL UNIQUE,
   pass_hash   VARCHAR(255) NOT NULL,
-  role        ENUM('admin','viewer') NOT NULL DEFAULT 'viewer',
+  role        ENUM('admin','family','viewer') NOT NULL DEFAULT 'viewer',   -- family: ansehen + Anschlüsse sperren/freigeben
+  ui_mode     ENUM('einfach','profi') NOT NULL DEFAULT 'profi',             -- zuletzt benutzte Ansicht
   created_at  DATETIME NOT NULL,
   last_login  DATETIME NULL
 ) ENGINE=InnoDB;

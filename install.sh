@@ -282,11 +282,12 @@ DDNS
   echo "Strato meldet: ${R:-keine Antwort}"
   case "$R" in
     *badauth*) die "Strato: Benutzer oder Passwort falsch. Korrigieren in $CONF (oder Datei löschen und neu aufrufen)." ;;
-    *nohost*|*notfqdn*) die "Strato kennt $DD_HOST nicht als DynDNS-Name – bei Strato für die Subdomain DynDNS einschalten." ;;
+    *nohost*|*notfqdn*) warn "Strato kennt $DD_HOST nicht als DynDNS-Name – bei Strato für die Subdomain DynDNS einschalten"
+                        warn "(ein von Hand angelegter A-Record reicht nicht). Weiter mit dem Zertifikat, falls der Name schon hierher zeigt." ;;
     *good*|*nochg*) ;;
     *) warn "Unerwartete Antwort von Strato – weiter geht es trotzdem; Protokoll: /var/log/netmon-dyndns.log" ;;
   esac
-  PUBIP=$(cut -d, -f1 /var/lib/netmon-dyndns.ip 2>/dev/null || true)
+  PUBIP=$(cut -d, -f1 /var/lib/netmon-dyndns.ip 2>/dev/null || curl -4 -fsS --max-time 15 https://api.ipify.org 2>/dev/null || true)
   echo -n "Warte, bis $DD_HOST auf ${PUBIP:-?} zeigt "
   for _ in $( [[ -n "$PUBIP" ]] && seq 1 36 ); do
     [[ -n "$PUBIP" && "$(getent ahostsv4 "$DD_HOST" | awk 'NR==1{print $1}')" == "$PUBIP" ]] && break

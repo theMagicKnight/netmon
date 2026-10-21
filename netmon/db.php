@@ -66,7 +66,12 @@ function current_user(): ?array
     }
     static $user = null;
     if ($user === null) {
-        $st = db()->prepare('SELECT id, username, role FROM users WHERE id = ?');
+        try {
+            $st = db()->prepare('SELECT id, username, role, ui_mode FROM users WHERE id = ?');
+            $st->execute([$_SESSION['uid']]);
+        } catch (PDOException $e) {   // vor dem Update auf Version 12
+            $st = db()->prepare("SELECT id, username, role, 'profi' AS ui_mode FROM users WHERE id = ?");
+        }
         $st->execute([$_SESSION['uid']]);
         $user = $st->fetch() ?: null;
         if ($user === null) {
@@ -79,6 +84,26 @@ function current_user(): ?array
 function is_admin(): bool
 {
     return (current_user()['role'] ?? '') === 'admin';
+}
+
+// Anschlüsse sperren/freigeben und LEDs schalten: Admin und Familie
+function can_switch(): bool
+{
+    return in_array(current_user()['role'] ?? '', ['admin', 'family'], true);
+}
+
+const ROLE_LABELS = ['admin' => 'Administrator', 'family' => 'Familie', 'viewer' => 'Betrachter'];
+
+// Ansicht merken (einfach = Schnellzugriff als Startseite, profi = volle Oberfläche)
+function set_ui_mode(string $mode): void
+{
+    $u = current_user();
+    if ($u && in_array($mode, ['einfach', 'profi'], true) && ($u['ui_mode'] ?? '') !== $mode) {
+        try {
+            db()->prepare('UPDATE users SET ui_mode = ? WHERE id = ?')->execute([$mode, $u['id']]);
+        } catch (PDOException $e) {
+        }
+    }
 }
 
 function csrf_token(): string
