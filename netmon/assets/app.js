@@ -2127,8 +2127,6 @@ $('#devPorts').addEventListener('click', async (e) => {
   if (!b || !currentDev) return;
   const port = Number(b.dataset.portoff);
   const on = b.dataset.on === '1';
-  const who = (currentDev.onPort[port] || []).join(', ');
-  if (!on && !confirm(`Port ${port}${who ? ' (' + who + ')' : ''} sperren?\n\nAlles an diesem Port ist dann vom Netz getrennt, bis du ihn wieder freigibst.`)) return;
   b.disabled = true;
   b.textContent = on ? 'gebe frei …' : 'sperre …';
   try {

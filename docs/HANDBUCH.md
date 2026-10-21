@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.8 · Oktober 2026
+Stand: Version 1.9 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -82,6 +82,7 @@ Beim ersten Aufruf legst du dort dein Admin-Konto an.
 | `--speedtest-every 20` | Speedtest alle 20 Minuten (10, 15, 20, 30, 60) |
 | `--zones sql/zones-beispiel.sql` | Beispiel-Bereiche einspielen |
 | `--with-tailscale` | Fernzugriff einrichten (siehe [Kapitel 8](#8-fernzugriff-mit-tailscale)) |
+| `--with-internet` | netmon aus dem Internet erreichbar machen: Strato-DynDNS + HTTPS (siehe [8.4](#84-ohne-tailscale-aus-dem-internet-dyndns--https)) |
 
 ### Von Hand (FTP + phpMyAdmin)
 
@@ -273,7 +274,8 @@ richtig, wenn der Repeater/AP selbst abgefragt wird.
 Ein gesperrter Port ist per Software abgeschaltet – alles daran ist vom Netz getrennt, bis du ihn freigibst.
 Typischer Einsatz: ein eigener Access Point fürs Kinderzimmer.
 
-- Switch öffnen → Port-Liste → **🔒 Sperren** (Sicherheitsfrage) bzw. **🔓 Freigeben**.
+- Switch öffnen → Port-Liste → **🔒 Sperren** bzw. **🔓 Freigeben** (ohne Rückfrage). netmon wartet, bis der Switch
+  den neuen Zustand meldet (ein paar Sekunden).
 - Gesperrte Ports sind rot umrandet, jede Änderung steht unter Ereignisse.
 - Name und übrige Einstellungen des Ports bleiben erhalten.
 - Unterstützt: Netgear GS308Ev4/GS108Ev4 und die älteren Plus-Switches (GS105E/v2, GS108Ev3).
@@ -343,6 +345,49 @@ In der Admin-Konsole je Rechner nur **sein** Netz angehakt lassen. Alte, nicht m
 
 ---
 
+### 8.4 Ohne Tailscale: aus dem Internet (DynDNS + HTTPS)
+
+Für Leute ohne Tailscale-App: netmon ist dann unter z. B. `https://netmon.meinedomain.de/netmon/` erreichbar.
+Tailscale ist sicherer (nichts ist offen) – wer beides will, kann beides.
+
+**Vorbereiten**
+
+1. **Strato:** Domains → Subdomain anlegen (z. B. `netmon.meinedomain.de`) → DNS → **DynDNS** einschalten und ein
+   DynDNS-Passwort vergeben. Einen **AAAA-Eintrag** (IPv6) der Subdomain entfernen, falls er auf Strato zeigt.
+2. **Router:** Port **80** und **443** (TCP) auf den netmon-Rechner weiterleiten
+   (Speedport: Internet → Portfreischaltung; FritzBox: Internet → Freigaben).
+
+**Einrichten**
+
+```bash
+cd ~/netmon && sudo bash install.sh --with-internet
+```
+
+Das Skript fragt einmalig Name, DynDNS-Benutzer (meist der Name selbst), DynDNS-Passwort und eine E-Mail
+für Let's Encrypt und
+
+- meldet die öffentliche IP alle 5 Minuten an Strato, wenn sie sich ändert (`/usr/local/bin/netmon-dyndns`,
+  Protokoll `/var/log/netmon-dyndns.log`, Zugang in `/etc/netmon-dyndns.conf`, nur für root lesbar),
+- holt ein **HTTPS-Zertifikat** von Let's Encrypt (erneuert sich selbst),
+- lässt von außen **nur netmon** durch – phpMyAdmin und alles andere auf dem Webserver bleiben im Heimnetz und
+  über Tailscale erreichbar,
+- leitet von außen immer auf HTTPS um.
+
+**Schutz im Login:** Nach 5 falschen Passwörtern ist eine IP 15 Minuten gesperrt, von außen insgesamt höchstens
+30 Fehlversuche in 15 Minuten. Im Heimnetz und über Tailscale gilt nur die Sperre je IP.
+Trotzdem: **starkes Admin-Passwort** – und für Familie/Freunde lieber eigene Konten mit der Rolle „Betrachter“
+(Einstellungen → Benutzer), die nur ansehen dürfen.
+
+**Prüfen / Fehlersuche**
+
+| Problem | Lösung |
+|---|---|
+| Strato meldet `badauth` | Benutzer/Passwort falsch – `/etc/netmon-dyndns.conf` korrigieren oder löschen und neu aufrufen |
+| Strato meldet `nohost` | DynDNS für die Subdomain bei Strato nicht eingeschaltet |
+| Zertifikat geht nicht | Port 80 nicht weitergeleitet, oder der Name zeigt noch nicht hierher – später erneut `--with-internet` |
+| IP sofort neu melden | `sudo netmon-dyndns --force` |
+| Von außen geht nichts, von innen schon | im Handy WLAN aus und testen; Portfreigabe im Router prüfen |
+
 ## 9. Empfehlung: IP-Plan fürs Heimnetz
 
 Feste Infrastruktur unten, wechselnde Geräte oben – dann sagt die IP schon, was es ist, und ein Fremder mit niedriger
@@ -396,6 +441,7 @@ Alle unter `/var/www/html/netmon/collector/`, Aufruf mit `php …` (bzw. `sudo p
 | `scan.php` | Netzwerkscan sofort |
 | `switches.php` | alle eingerichteten Geräte sofort abfragen |
 | `speedtest.php` | Speedtest sofort |
+| `netmon-dyndns [--force]` | (mit `--with-internet`) öffentliche IP an Strato melden |
 | `leds.php aus\|an [IP …]` | LEDs aller (oder bestimmter) Switches schalten |
 | `port.php aus\|an <Switch-IP> <Port>` | Port sperren/freigeben (geschützte Ports werden abgelehnt) |
 | `cleanup.php` | alte Daten löschen (läuft nachts von selbst) |
@@ -460,7 +506,7 @@ install.sh                 Installation/Update
 docs/                      Handbuch, Bilder
 ```
 
-### 13.3 Datenbank (Version 10)
+### 13.3 Datenbank (Version 11)
 
 | Tabelle | Inhalt |
 |---|---|
@@ -475,6 +521,7 @@ docs/                      Handbuch, Bilder
 | `port_history` | Datenrate je Port und Minute |
 | `wifi_clients` | WLAN-Clients je AP/Router mit Signal |
 | `ap_history` | CPU, Speicher, Clients je AP und Minute |
+| `login_fails` | fehlgeschlagene Anmeldungen je IP (Login-Sperre) |
 | `dev_metrics` | Router-Messwerte je Minute (DSL, Internet) |
 
 ---

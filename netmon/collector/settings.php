@@ -35,7 +35,7 @@ function netmon_pdo(array $cfg): PDO
 }
 
 // Datenbank automatisch auf den aktuellen Stand bringen (neue Spalten), einmal pro Version
-const NETMON_SCHEMA = 10;
+const NETMON_SCHEMA = 11;
 
 function netmon_upgrade(PDO $db): void
 {
@@ -111,6 +111,10 @@ function netmon_upgrade(PDO $db): void
     // Version 10: Port per Software abgeschaltet (Switch-Einstellung „Disable“)
     if ($v < 10 && !$db->query("SHOW COLUMNS FROM switch_ports LIKE 'admin_off'")->fetch()) {
         $db->exec('ALTER TABLE switch_ports ADD COLUMN admin_off TINYINT(1) NOT NULL DEFAULT 0 AFTER link');
+    }
+    // Version 11: fehlgeschlagene Anmeldungen (Schutz gegen Passwort-Raten, wenn netmon aus dem Internet erreichbar ist)
+    if ($v < 11) {
+        $db->exec('CREATE TABLE IF NOT EXISTS login_fails (   ip  VARCHAR(45) NOT NULL,   ts  DATETIME    NOT NULL,   INDEX idx_ip_ts (ip, ts), INDEX idx_ts (ts) ) ENGINE=InnoDB');
     }
     netmon_set($db, 'schema_version', NETMON_SCHEMA);
 }

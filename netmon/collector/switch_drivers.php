@@ -220,11 +220,23 @@ function switch_port_enable(PDO $db, array $dev, int $port, bool $on): void
     switch_locked($db, (int) $dev['id'], 20, fn() => switch_open($dev)->session(fn(SwitchDriver $d) => $d->setPortEnabled($port, $on)));
     $db->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, NOW())")
        ->execute([$dev['id'], "Port $port " . ($on ? 'freigegeben' : 'gesperrt')]);
-    try {
-        switch_poll($db, $dev);
-    } catch (Throwable $e) {
-        // Abfrage klappt beim nächsten Takt
+    // Der Switch übernimmt die Einstellung erst nach ein paar Sekunden – sofort danach gelesen meldet er noch den alten Zustand.
+    // Darum kurz warten und nachlesen, bis er passt; klappt das nicht, zählt der geschaltete Zustand (nächster Takt liest neu).
+    $st = $db->prepare('SELECT admin_off FROM switch_ports WHERE device_id = ? AND port = ?');
+    for ($try = 0; $try < 3; $try++) {
+        sleep(2);
+        try {
+            switch_poll($db, $dev);
+        } catch (Throwable $e) {
+            continue;
+        }
+        $st->execute([$dev['id'], $port]);
+        if ((int) $st->fetchColumn() === ($on ? 0 : 1)) {
+            return;
+        }
     }
+    $db->prepare('UPDATE switch_ports SET admin_off = ?, link = IF(? = 1, 0, link) WHERE device_id = ? AND port = ?')
+       ->execute([$on ? 0 : 1, $on ? 0 : 1, $dev['id'], $port]);
 }
 
 // LEDs eines Geräts schalten (mit Sperre, damit sich Cron und Oberfläche nicht in die Quere kommen)

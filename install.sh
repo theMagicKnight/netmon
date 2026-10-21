@@ -7,6 +7,7 @@
 #   sudo ./install.sh --subnet 192.168.1.0/24 --web /var/www/html/netmon --speedtest-every 20
 #   sudo ./install.sh --no-speedtest                    # Speedtest zunächst aus (in den Einstellungen umschaltbar)
 #   sudo ./install.sh --with-tailscale                  # zusätzlich Fernzugriff: Tailscale + Heimnetz als Subnet-Route
+#   sudo ./install.sh --with-internet                   # netmon aus dem Internet: Strato-DynDNS + HTTPS (Let's Encrypt)
 #
 # Alles landet in EINEM Ordner (Standard /var/www/html/netmon): Weboberfläche, collector/ und config.php.
 # Ein zweiter Aufruf aktualisiert; Datenbank, config.php und Einstellungen bleiben erhalten.
@@ -21,6 +22,8 @@ SPEED_ON=1
 SPEED_OFF_GIVEN=0
 DB=netmon
 TAILSCALE=0
+INTERNET=0
+INET_URL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,7 +33,8 @@ while [[ $# -gt 0 ]]; do
     --speedtest-every) SPEED_EVERY="$2"; shift 2 ;;
     --no-speedtest)    SPEED_ON=0; SPEED_OFF_GIVEN=1; shift ;;
     --with-tailscale)  TAILSCALE=1; shift ;;
-    -h|--help)         sed -n '2,13p' "$0"; exit 0 ;;
+    --with-internet)   INTERNET=1; shift ;;
+    -h|--help)         sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "Unbekannte Option: $1"; exit 1 ;;
   esac
 done
@@ -233,6 +237,100 @@ if [[ $TAILSCALE -eq 1 ]]; then
 fi
 
 # ---------------------------------------------------------------
+# Internet-Zugang: Strato-DynDNS hält den Namen auf der öffentlichen IP, Let's Encrypt liefert HTTPS.
+# Von außen ist nur netmon erreichbar (alles andere auf dem Webserver, z. B. phpMyAdmin, bleibt im Heimnetz).
+if [[ $INTERNET -eq 1 ]]; then
+  say "Internet-Zugang (Strato-DynDNS + HTTPS)"
+  CONF=/etc/netmon-dyndns.conf
+  DD_HOST=""; DD_USER=""; DD_PASS=""; DD_MAIL=""
+  [[ -f $CONF ]] && . "$CONF"
+  ask() { local v; read -r -p "$1${2:+ [$2]}: " v </dev/tty; echo "${v:-$2}"; }
+  [[ -n "$DD_HOST" ]] || DD_HOST=$(ask "Name im Internet (Subdomain bei Strato, z. B. netmon.meinedomain.de)")
+  [[ "$DD_HOST" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || die "Ungültiger Name: $DD_HOST"
+  [[ -n "$DD_USER" ]] || DD_USER=$(ask "Strato-DynDNS-Benutzer (meist der Name selbst)" "$DD_HOST")
+  if [[ -z "$DD_PASS" ]]; then read -r -s -p "Strato-DynDNS-Passwort: " DD_PASS </dev/tty; echo; fi
+  [[ -n "$DD_PASS" ]] || die "Ohne DynDNS-Passwort geht es nicht (Strato: Domains → Subdomain → DNS → DynDNS)."
+  [[ -n "$DD_MAIL" ]] || DD_MAIL=$(ask "E-Mail für Let's Encrypt (Hinweise zum Zertifikat)")
+  umask 077
+  printf 'DD_HOST=%q\nDD_USER=%q\nDD_PASS=%q\nDD_MAIL=%q\n' "$DD_HOST" "$DD_USER" "$DD_PASS" "$DD_MAIL" > "$CONF"
+  umask 022
+  chmod 600 "$CONF"
+
+  cat > /usr/local/bin/netmon-dyndns <<'DDNS'
+#!/usr/bin/env bash
+# netmon – Strato-DynDNS: meldet die öffentliche IPv4 des Anschlusses, wenn sie sich geändert hat (Cron alle 5 Minuten)
+# Aufruf von Hand:  sudo netmon-dyndns --force
+set -u
+. /etc/netmon-dyndns.conf
+STATE=/var/lib/netmon-dyndns.ip
+IP=$(curl -4 -fsS --max-time 15 https://api.ipify.org 2>/dev/null || curl -4 -fsS --max-time 15 https://ifconfig.me 2>/dev/null) || exit 0
+[[ $IP =~ ^[0-9]+(\.[0-9]+){3}$ ]] || exit 0
+[[ "${1:-}" != "--force" && -f $STATE && "$(cat "$STATE")" == "$IP" ]] && exit 0
+R=$(curl -fsS --max-time 20 -u "$DD_USER:$DD_PASS" "https://dyndns.strato.com/nic/update?hostname=$DD_HOST&myip=$IP" 2>&1)
+echo "$(date '+%F %T') $DD_HOST -> $IP: $R"
+case "$R" in good*|nochg*) echo "$IP" > "$STATE" ;; *) rm -f "$STATE" ;; esac
+DDNS
+  chmod 755 /usr/local/bin/netmon-dyndns
+  echo '*/5 * * * *  root  /usr/local/bin/netmon-dyndns >> /var/log/netmon-dyndns.log 2>&1' > /etc/cron.d/netmon-dyndns
+  R=$(/usr/local/bin/netmon-dyndns --force)
+  echo "Strato meldet: ${R:-keine Antwort}"
+  case "$R" in
+    *badauth*) die "Strato: Benutzer oder Passwort falsch. Korrigieren in $CONF (oder Datei löschen und neu aufrufen)." ;;
+    *nohost*|*notfqdn*) die "Strato kennt $DD_HOST nicht als DynDNS-Name – bei Strato für die Subdomain DynDNS einschalten." ;;
+    *good*|*nochg*) ;;
+    *) warn "Unerwartete Antwort von Strato – weiter geht es trotzdem; Protokoll: /var/log/netmon-dyndns.log" ;;
+  esac
+  PUBIP=$(cat /var/lib/netmon-dyndns.ip 2>/dev/null || true)
+  echo -n "Warte, bis $DD_HOST auf ${PUBIP:-?} zeigt "
+  for _ in $( [[ -n "$PUBIP" ]] && seq 1 36 ); do
+    [[ -n "$PUBIP" && "$(getent ahostsv4 "$DD_HOST" | awk 'NR==1{print $1}')" == "$PUBIP" ]] && break
+    echo -n "."; sleep 5
+  done; echo
+  if getent ahostsv6 "$DD_HOST" | awk '{print $1}' | grep -v '^::ffff:' | grep -q ':'; then
+    warn "$DD_HOST hat auch eine IPv6-Adresse (AAAA). Zeigt die nicht auf diesen Anschluss, landen manche Browser woanders –"
+    warn "bei Strato im DNS der Subdomain den AAAA-Eintrag entfernen."
+  fi
+
+  apt-get install -y -qq certbot python3-certbot-apache >/dev/null || die "certbot ließ sich nicht installieren"
+  a2enmod -q ssl headers rewrite >/dev/null
+  NMPATH="/${WEB#/var/www/html/}"; NMPATH="${NMPATH%/}"
+  LOCALNET="127.0.0.0/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 fe80::/10 fc00::/7"
+  cat > /etc/apache2/sites-available/netmon-internet.conf <<VHOST
+# netmon – Zugang aus dem Internet ($DD_HOST); HTTPS ergänzt certbot in netmon-internet-le-ssl.conf
+<VirtualHost *:80>
+    ServerName $DD_HOST
+    DocumentRoot /var/www/html
+    RedirectMatch ^/\$ $NMPATH/
+</VirtualHost>
+VHOST
+  cat > /etc/apache2/conf-available/netmon-schutz.conf <<GUARD
+# netmon – von außen nur netmon (und die Let's-Encrypt-Prüfung); alles andere nur aus dem Heimnetz und über Tailscale
+<LocationMatch "^/(?!${NMPATH#/}(/|\$)|\.well-known/acme-challenge/)">
+    Require ip $LOCALNET
+</LocationMatch>
+# netmon von außen nur verschlüsselt
+<Location "$NMPATH">
+    <If "%{HTTPS} != 'on' && ! -R '10.0.0.0/8' && ! -R '172.16.0.0/12' && ! -R '192.168.0.0/16' && ! -R '100.64.0.0/10' && ! -R '127.0.0.0/8'">
+        Redirect 301 "https://$DD_HOST$NMPATH/"
+    </If>
+</Location>
+GUARD
+  a2ensite -q netmon-internet >/dev/null
+  a2enconf -q netmon-schutz >/dev/null
+  apache2ctl configtest 2>/dev/null || die "Apache-Konfiguration fehlerhaft (apache2ctl configtest)"
+  systemctl reload apache2
+  if [[ -f "/etc/letsencrypt/live/$DD_HOST/fullchain.pem" ]]; then
+    echo "Zertifikat für $DD_HOST ist schon da (wird automatisch erneuert)"
+  elif certbot --apache -d "$DD_HOST" --redirect --non-interactive --agree-tos -m "$DD_MAIL"; then
+    echo "Zertifikat eingerichtet, Erneuerung läuft automatisch"
+  else
+    warn "Zertifikat ging nicht. Meist: Port 80 im Router nicht auf diesen Rechner weitergeleitet, oder der Name zeigt noch nicht hierher."
+    warn "Danach einfach noch einmal:  sudo bash install.sh --with-internet"
+  fi
+  INET_URL="https://$DD_HOST$NMPATH/"
+fi
+
+# ---------------------------------------------------------------
 say "Erster Scan"
 php "$WEB/collector/scan.php" || warn "Scan fehlgeschlagen, Details siehe oben"
 
@@ -250,7 +348,8 @@ cat <<HINTS
   Konfiguration:  $WEB/config.php   (Datenbank-Zugang; Subnetz und Intervalle stellst du in der Weboberfläche ein)
   Protokoll:      /var/log/netmon-tick.log
   Aktualisieren:  $UPD   (Daten und config.php bleiben erhalten)
-
+${INET_URL:+  Aus dem Internet: $INET_URL   (Router: Port 80 und 443 auf diesen Rechner weiterleiten)
+}
   Geräte-Abfrage (Switches, FritzBox, Access Points): Gerät öffnen → Einstellungen → Treiber + Passwort.
   TP-Link-Access-Points brauchen zusätzlich Python, siehe LIESMICH.md „Python für TP-Link“.
 HINTS

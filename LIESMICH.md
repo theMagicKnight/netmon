@@ -9,7 +9,7 @@ Netzwerk-Monitor fürs Heimnetz: Geräte, Baum, Räume, Switch-Ports, WLAN, Spee
 ```bash
 git clone https://github.com/theMagicKnight/netmon.git
 cd netmon
-sudo bash install.sh                  # optional: --with-tailscale  (Fernzugriff)
+sudo bash install.sh                  # optional: --with-tailscale (Fernzugriff), --with-internet (DynDNS + HTTPS)
 ```
 
 Danach `http://<server>/netmon/` aufrufen und das Admin-Konto anlegen.

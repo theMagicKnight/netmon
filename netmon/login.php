@@ -55,7 +55,9 @@ if ($dbError === '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ./');
             exit;
         }
-        $error = 'Benutzername oder Passwort stimmt nicht.';
+        $error = ($m = login_blocked()) > 0
+            ? "Zu viele Fehlversuche – bitte in $m Minuten noch einmal versuchen."
+            : 'Benutzername oder Passwort stimmt nicht.';
     }
 }
 

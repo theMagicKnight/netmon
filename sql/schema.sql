@@ -106,6 +106,13 @@ CREATE TABLE users (
   last_login  DATETIME NULL
 ) ENGINE=InnoDB;
 
+-- Fehlgeschlagene Anmeldungen je IP (Sperre gegen Passwort-Raten)
+CREATE TABLE IF NOT EXISTS login_fails (
+  ip  VARCHAR(45) NOT NULL,
+  ts  DATETIME    NOT NULL,
+  INDEX idx_ip_ts (ip, ts), INDEX idx_ts (ts)
+) ENGINE=InnoDB;
+
 -- Einstellungen aus der Weboberfläche (überschreiben config.php)
 CREATE TABLE settings (
   k  VARCHAR(64) PRIMARY KEY,

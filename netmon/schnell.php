@@ -169,7 +169,6 @@ document.addEventListener('click', async (e) => {
   if (b) {
     const p = data.ports[Number(b.dataset.i)];
     const name = p.who.join(', ') || p.desc || `Port ${p.p}`;
-    if (!p.off && !confirm(`„${name}“ sperren?\nAlles an diesem Port ist dann vom Netz getrennt.`)) return;
     b.disabled = true; b.textContent = p.off ? 'gebe frei …' : 'sperre …';
     try {
       await call('switch_port', { id: p.id, port: p.p, on: p.off ? 1 : 0 });

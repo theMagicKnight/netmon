@@ -50,6 +50,7 @@ $del->execute([$keepEvents]);
 $eventsDeleted = $del->rowCount();
 
 // 3. Altes Scan-Protokoll löschen
+$db->exec('DELETE FROM login_fails WHERE ts < NOW() - INTERVAL 1 DAY');
 $del = $db->prepare('DELETE FROM scans WHERE started_at < NOW() - INTERVAL ? DAY');
 $del->execute([$keepScans]);
 $scansDeleted = $del->rowCount();

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0 – 2026-10-21
+
+- **Aus dem Internet erreichbar:** `install.sh --with-internet` richtet Strato-DynDNS (alle 5 Minuten, nur bei neuer IP)
+  und HTTPS mit Let's Encrypt ein. Von außen ist nur netmon erreichbar (phpMyAdmin u. a. bleiben im Heimnetz/Tailscale),
+  unverschlüsselte Aufrufe von außen werden auf HTTPS umgeleitet.
+- **Login-Sperre:** 5 falsche Passwörter je IP → 15 Minuten gesperrt; von außen zusätzlich höchstens 30 Fehlversuche
+  in 15 Minuten insgesamt. Neue Tabelle `login_fails` (Datenbank-Version 11, wird selbst ergänzt).
+- **Ports sperren/freigeben:** wirkt jetzt beim ersten Klick auch in der Anzeige – netmon wartet, bis der Switch den neuen
+  Zustand meldet (vorher zeigte die sofortige Abfrage noch den alten Zustand). Die Rückfrage beim Sperren entfällt.
+
 ## 1.8.0 – 2026-10-20
 
 - **Offline-Geräte ausblenden:** Neue Einstellung (Netzwerkscan → „Offline-Geräte ausblenden“, Standard 3 Tage).
