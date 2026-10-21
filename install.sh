@@ -258,17 +258,23 @@ if [[ $INTERNET -eq 1 ]]; then
 
   cat > /usr/local/bin/netmon-dyndns <<'DDNS'
 #!/usr/bin/env bash
-# netmon – Strato-DynDNS: meldet die öffentliche IPv4 des Anschlusses, wenn sie sich geändert hat (Cron alle 5 Minuten)
+# netmon – Strato-DynDNS: meldet die öffentliche IPv4 und die IPv6 dieses Rechners, wenn sich eine geändert hat (Cron alle 5 Minuten)
 # Aufruf von Hand:  sudo netmon-dyndns --force
 set -u
 . /etc/netmon-dyndns.conf
 STATE=/var/lib/netmon-dyndns.ip
 IP=$(curl -4 -fsS --max-time 15 https://api.ipify.org 2>/dev/null || curl -4 -fsS --max-time 15 https://ifconfig.me 2>/dev/null) || exit 0
 [[ $IP =~ ^[0-9]+(\.[0-9]+){3}$ ]] || exit 0
-[[ "${1:-}" != "--force" && -f $STATE && "$(cat "$STATE")" == "$IP" ]] && exit 0
-R=$(curl -fsS --max-time 20 -u "$DD_USER:$DD_PASS" "https://dyndns.strato.com/nic/update?hostname=$DD_HOST&myip=$IP" 2>&1)
-echo "$(date '+%F %T') $DD_HOST -> $IP: $R"
-case "$R" in good*|nochg*) echo "$IP" > "$STATE" ;; *) rm -f "$STATE" ;; esac
+# IPv6: feste (nicht temporäre) globale Adresse dieses Rechners – Strato soll nicht die Adresse des Routers o. Ä. eintragen
+IP6=""
+if [[ "${DD_IPV6:-1}" == "1" ]]; then
+  IP6=$(ip -6 -o addr show scope global -temporary -deprecated 2>/dev/null | awk '{sub(/\/.*/,"",$4); print $4}' | grep -v -i '^f[cd]' | head -1)
+fi
+WANT="$IP${IP6:+,$IP6}"
+[[ "${1:-}" != "--force" && -f $STATE && "$(cat "$STATE")" == "$WANT" ]] && exit 0
+R=$(curl -4 -fsS --max-time 20 -u "$DD_USER:$DD_PASS" "https://dyndns.strato.com/nic/update?hostname=$DD_HOST&myip=$WANT" 2>&1)
+echo "$(date '+%F %T') $DD_HOST -> $WANT: $R"
+case "$R" in good*|nochg*) echo "$WANT" > "$STATE" ;; *) rm -f "$STATE" ;; esac
 DDNS
   chmod 755 /usr/local/bin/netmon-dyndns
   echo '*/5 * * * *  root  /usr/local/bin/netmon-dyndns >> /var/log/netmon-dyndns.log 2>&1' > /etc/cron.d/netmon-dyndns
@@ -280,17 +286,14 @@ DDNS
     *good*|*nochg*) ;;
     *) warn "Unerwartete Antwort von Strato – weiter geht es trotzdem; Protokoll: /var/log/netmon-dyndns.log" ;;
   esac
-  PUBIP=$(cat /var/lib/netmon-dyndns.ip 2>/dev/null || true)
+  PUBIP=$(cut -d, -f1 /var/lib/netmon-dyndns.ip 2>/dev/null || true)
   echo -n "Warte, bis $DD_HOST auf ${PUBIP:-?} zeigt "
   for _ in $( [[ -n "$PUBIP" ]] && seq 1 36 ); do
     [[ -n "$PUBIP" && "$(getent ahostsv4 "$DD_HOST" | awk 'NR==1{print $1}')" == "$PUBIP" ]] && break
     echo -n "."; sleep 5
   done; echo
-  if getent ahostsv6 "$DD_HOST" | awk '{print $1}' | grep -v '^::ffff:' | grep -q ':'; then
-    warn "$DD_HOST hat auch eine IPv6-Adresse (AAAA). Zeigt die nicht auf diesen Anschluss, landen manche Browser woanders –"
-    warn "bei Strato im DNS der Subdomain den AAAA-Eintrag entfernen."
-  fi
-
+  echo "IPv6 wird mit gemeldet. Im Router dafür auch eine IPv6-Freigabe (TCP 80 und 443) für diesen Rechner anlegen –"
+  echo "sonst in $CONF die Zeile  DD_IPV6=0  ergänzen (dann bitte bei Strato den AAAA-Eintrag löschen)."
   apt-get install -y -qq certbot python3-certbot-apache >/dev/null || die "certbot ließ sich nicht installieren"
   a2enmod -q ssl headers rewrite >/dev/null
   NMPATH="/${WEB#/var/www/html/}"; NMPATH="${NMPATH%/}"

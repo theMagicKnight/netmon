@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.1 – 2026-10-21
+
+- DynDNS meldet jetzt IPv4 **und** die feste IPv6 des Rechners an Strato (Strato hatte die IPv6 sonst einmalig selbst
+  eingetragen und danach nicht mehr aktualisiert). Wer IPv6 im Router nicht freigeben will: `DD_IPV6=0` in
+  `/etc/netmon-dyndns.conf` und bei Strato den AAAA-Eintrag löschen.
+
 ## 1.9.0 – 2026-10-21
 
 - **Aus dem Internet erreichbar:** `install.sh --with-internet` richtet Strato-DynDNS (alle 5 Minuten, nur bei neuer IP)

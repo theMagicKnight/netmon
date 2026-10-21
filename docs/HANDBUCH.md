@@ -353,9 +353,12 @@ Tailscale ist sicherer (nichts ist offen) – wer beides will, kann beides.
 **Vorbereiten**
 
 1. **Strato:** Domains → Subdomain anlegen (z. B. `netmon.meinedomain.de`) → DNS → **DynDNS** einschalten und ein
-   DynDNS-Passwort vergeben. Einen **AAAA-Eintrag** (IPv6) der Subdomain entfernen, falls er auf Strato zeigt.
-2. **Router:** Port **80** und **443** (TCP) auf den netmon-Rechner weiterleiten
-   (Speedport: Internet → Portfreischaltung; FritzBox: Internet → Freigaben).
+   DynDNS-Passwort für *diese* Subdomain vergeben. DynDNS-Benutzer ist die Subdomain selbst.
+   Ein von Hand eingetragener A-Record reicht nicht – dann meldet Strato `nohost`.
+2. **Router:** Port **80** und **443** (TCP) auf den netmon-Rechner weiterleiten – für **IPv4 und IPv6**
+   (Speedport: Internet → Portfreischaltung, dort auch die IPv6-Freigaben; FritzBox: Internet → Freigaben,
+   beim Gerät „IPv4“ und „IPv6“ anhaken). netmon meldet beide Adressen an Strato; viele Handys nutzen zuerst IPv6.
+   Ohne IPv6-Freigabe: `DD_IPV6=0` in `/etc/netmon-dyndns.conf` und bei Strato den AAAA-Eintrag löschen.
 
 **Einrichten**
 
