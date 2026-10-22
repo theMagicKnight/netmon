@@ -84,17 +84,45 @@ $byMac = [];
 foreach ($raw as $h) {
     $byMac[$h['mac']][] = $h;
 }
+// Als Repeater gilt eine MAC erst bei mindestens 3 IPs gleichzeitig – oder bei 2 IPs, wenn eine davon als AVM-Gerät antwortet.
+// (Manche Geräte haben einfach zwei IPs; die sind kein Repeater.)
 $proxy = json_decode((string) ($s['proxy_macs'] ?? ''), true) ?: [];
+$selByMac = $db->prepare('SELECT id, INET_NTOA(ip) AS ip FROM devices WHERE mac = ?');
+$dropped = [];
+foreach ($proxy as $mac => $p) {
+    if (!empty($p['not'])) {
+        if ($p['not'] < time() - 86400) {
+            unset($proxy[$mac]);   // „kein Repeater“ nach einem Tag erneut prüfen
+        }
+        continue;
+    }
+    if (($p['n'] ?? 0) < 3 && empty($p['avm'])) {
+        $dropped[] = $mac;   // aus älterer Version zu schnell gelernt
+        unset($proxy[$mac]);
+    }
+}
 foreach ($byMac as $mac => $list) {
-    if (count($list) > 1 && !isset($proxy[$mac])) {
-        $proxy[$mac] = ['ip' => null];
+    if (count($list) < 2 || isset($proxy[$mac])) {
+        if (isset($proxy[$mac]) && empty($proxy[$mac]['not'])) {
+            $proxy[$mac]['n'] = max($proxy[$mac]['n'] ?? 0, count($list));
+        }
+        continue;
+    }
+    $avm = count($list) >= 3 ? null : proxyAvmIp(array_column($list, 'ip'));
+    if (count($list) < 3 && $avm === null) {
+        $proxy[$mac] = ['not' => time()];   // zwei IPs, kein Repeater – einen Tag nicht erneut prüfen
+        continue;
+    }
+    if (count($list) >= 3 || $avm !== null) {
+        $proxy[$mac] = ['ip' => $avm, 'n' => count($list), 'avm' => $avm !== null];
+        $dropped = array_diff($dropped, [$mac]);
         fwrite(STDERR, date('c') . " $mac meldet sich unter " . count($list) . " IPs – Repeater mit MAC-Tarnung, Geräte dahinter werden getrennt erkannt\n");
     }
 }
 $realByIp = [];   // IP → echte MAC laut WLAN-Liste eines Access Points/Repeaters
 try {
     foreach ($db->query('SELECT mac, ip FROM wifi_clients WHERE ip IS NOT NULL') as $r) {
-        if (!isset($proxy[strtoupper($r['mac'])])) {
+        if (empty($proxy[strtoupper($r['mac'])]) || !empty($proxy[strtoupper($r['mac'])]['not'])) {
             $realByIp[$r['ip']] = strtoupper($r['mac']);
         }
     }
@@ -104,11 +132,21 @@ $hosts = [];
 $behind = [];      // Geräte hinter einem Repeater ohne bekannte echte MAC: [host + proxy]
 $keepAlive = [];   // Repeater, deren eigene IP gerade nicht feststellbar ist: bleiben online, IP unverändert
 foreach ($byMac as $mac => $list) {
-    if (!isset($proxy[$mac])) {
-        $hosts[$mac] = end($list);
+    if (!isset($proxy[$mac]) || !empty($proxy[$mac]['not'])) {
+        // mehrere IPs, aber kein Repeater: bei der bekannten IP bleiben, damit der Eintrag nicht hin und her springt
+        $selByMac->execute([$mac]);
+        $known = $selByMac->fetch()['ip'] ?? null;
+        $pick = end($list);
+        foreach ($list as $h) {
+            if ($h['ip'] === $known) {
+                $pick = $h;
+            }
+        }
+        $hosts[$mac] = $pick;
         continue;
     }
-    $own = proxyOwnIp($list, $proxy[$mac]['ip'] ?? null);
+    $selByMac->execute([$mac]);
+    $own = proxyOwnIp($list, $proxy[$mac]['ip'] ?? null, $selByMac->fetch()['ip'] ?? null);
     $proxy[$mac]['ip'] = $own;
     if ($own === null) {
         $keepAlive[] = $mac;
@@ -124,8 +162,15 @@ foreach ($byMac as $mac => $list) {
         }
     }
 }
-if ($proxy) {
-    netmon_set($db, 'proxy_macs', json_encode($proxy));
+if ($proxy || $dropped) {
+    netmon_set($db, 'proxy_macs', json_encode((object) $proxy));
+}
+// Fälschlich gelernte Repeater: deren Einträge „hinter Repeater“ (ohne MAC, ohne Namen) wieder entfernen
+foreach ($dropped as $mac) {
+    $selByMac->execute([$mac]);
+    if ($rid = $selByMac->fetch()['id'] ?? null) {
+        $db->prepare("DELETE FROM devices WHERE parent_id = ? AND mac IS NULL AND name IS NULL AND vendor = 'hinter Repeater'")->execute([$rid]);
+    }
 }
 
 // Sicherung: Ein leerer Scan darf nicht alle Geräte offline setzen
@@ -265,24 +310,43 @@ function isPrivateMac(string $mac): bool
     return in_array(strtoupper($mac[1]), ['2', '6', 'A', 'E'], true);
 }
 
-// Eigene IP eines Repeaters mit MAC-Tarnung: die zuletzt erkannte, sonst die IP, die als AVM-Gerät antwortet
-// (TR-064-Beschreibung auf Port 49000 – Geräte hinter dem Repeater antworten dort nicht)
-function proxyOwnIp(array $list, ?string $cached): ?string
+// Eigene IP eines Repeaters mit MAC-Tarnung, in dieser Reihenfolge: die zuletzt erkannte; die IP, die als AVM-Gerät
+// antwortet (Port 49000 – Geräte dahinter antworten dort nicht); die IP, die netmon für das Gerät gespeichert hat;
+// die einzige IP mit einer Weboberfläche (die meisten Repeater haben eine, Handys dahinter nicht)
+function proxyOwnIp(array $list, ?string $cached, ?string $known): ?string
 {
     $ips = array_column($list, 'ip');
     if ($cached !== null && in_array($cached, $ips, true)) {
         return $cached;
     }
+    if (($avm = proxyAvmIp($ips)) !== null) {
+        return $avm;
+    }
+    if ($known !== null && in_array($known, $ips, true)) {
+        return $known;
+    }
+    $web = array_values(array_filter($ips, fn($ip) => httpProbe("http://$ip/") !== null));
+    return count($web) === 1 ? $web[0] : null;
+}
+
+function proxyAvmIp(array $ips): ?string
+{
     foreach ($ips as $ip) {
-        $c = curl_init("http://$ip:49000/tr64desc.xml");
-        curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 2, CURLOPT_TIMEOUT => 3]);
-        $r = (string) curl_exec($c);
-        curl_close($c);
-        if (stripos($r, '<deviceType>') !== false) {
+        if (stripos((string) httpProbe("http://$ip:49000/tr64desc.xml"), '<deviceType>') !== false) {
             return $ip;
         }
     }
     return null;
+}
+
+function httpProbe(string $url): ?string
+{
+    $c = curl_init($url);
+    curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 1, CURLOPT_TIMEOUT => 3]);
+    $r = curl_exec($c);
+    $code = (int) curl_getinfo($c, CURLINFO_HTTP_CODE);
+    curl_close($c);
+    return $r === false || $code === 0 ? null : (string) $r;
 }
 
 // MAC der lokalen Schnittstelle, die die angegebene IP trägt

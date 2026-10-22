@@ -229,8 +229,9 @@ netmon ermittelt den internen Benutzer selbst. Liefert die WLAN-Clients (Signal 
 umgerechnet).
 
 **Repeater per WLAN an einem fremden Router** (z. B. FRITZ!Repeater am Speedport): Der Repeater zeigt alle Geräte hinter
-sich mit **seiner eigenen MAC-Adresse**. netmon erkennt das selbst (eine MAC unter mehreren IPs), hält den Repeater auf
-seiner eigenen IP und legt die Geräte dahinter getrennt an – im Baum **unter dem Repeater**. Ist der Repeater mit Kennwort
+sich mit **seiner eigenen MAC-Adresse**. netmon erkennt das selbst (eine MAC unter mindestens drei IPs, oder unter zwei,
+wenn eine als AVM-Gerät antwortet – Geräte, die einfach zwei IPs haben, gelten nicht als Repeater), hält den Repeater
+auf seiner eigenen IP und legt die Geräte dahinter getrennt an – im Baum **unter dem Repeater**. Ist der Repeater mit Kennwort
 eingerichtet, kommen deren **echte MAC-Adressen** aus seiner WLAN-Liste; sonst erkennt netmon sie nur an der IP
 (Hersteller „hinter Repeater“; wechselt die IP, entsteht ein neuer Eintrag). Darum: Repeater mit Kennwort einrichten und
 ihm im Router eine feste IP geben.

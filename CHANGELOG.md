@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.1 – 2026-10-22
+
+- Repeater-Erkennung strenger: erst ab drei IPs unter einer MAC (oder zwei, wenn eine als AVM-Gerät antwortet). Geräte, die
+  einfach zwei IPs haben, gelten nicht mehr als Repeater; ein von 1.12.0 zu schnell gelernter Eintrag wird samt seiner
+  Geräte „hinter Repeater“ wieder entfernt. Solche Geräte bleiben bei ihrer bekannten IP, statt hin und her zu springen.
+- Eigene IP eines Repeaters, der nicht von AVM ist: die von netmon gespeicherte IP, sonst die einzige mit Weboberfläche.
+- Prüfungen werden gemerkt – der Scan wird dadurch nicht langsamer.
+
 ## 1.12.0 – 2026-10-22
 
 - **Repeater mit MAC-Tarnung:** Ein FRITZ!Repeater (u. a.) per WLAN an einem fremden Router zeigt alle Geräte hinter sich
