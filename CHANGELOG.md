@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.12.2 – 2026-10-22
+
+- Geräte hinter einem Repeater: Sobald der Repeater die echte MAC meldet, verschwindet der vorläufige Eintrag „hinter Repeater“
+  unter derselben IP (keine Doppelten mehr). Der Gerätename kommt aus der WLAN-Liste des Repeaters, wenn das Netz keinen liefert.
+
 ## 1.12.1 – 2026-10-22
 
 - Repeater-Erkennung strenger: erst ab drei IPs unter einer MAC (oder zwei, wenn eine als AVM-Gerät antwortet). Geräte, die

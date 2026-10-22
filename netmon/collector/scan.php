@@ -119,11 +119,11 @@ foreach ($byMac as $mac => $list) {
         fwrite(STDERR, date('c') . " $mac meldet sich unter " . count($list) . " IPs – Repeater mit MAC-Tarnung, Geräte dahinter werden getrennt erkannt\n");
     }
 }
-$realByIp = [];   // IP → echte MAC laut WLAN-Liste eines Access Points/Repeaters
+$realByIp = [];   // IP → [echte MAC, Gerätename] laut WLAN-Liste eines Access Points/Repeaters
 try {
-    foreach ($db->query('SELECT mac, ip FROM wifi_clients WHERE ip IS NOT NULL') as $r) {
+    foreach ($db->query('SELECT mac, ip, host FROM wifi_clients WHERE ip IS NOT NULL') as $r) {
         if (empty($proxy[strtoupper($r['mac'])]) || !empty($proxy[strtoupper($r['mac'])]['not'])) {
-            $realByIp[$r['ip']] = strtoupper($r['mac']);
+            $realByIp[$r['ip']] = [strtoupper($r['mac']), $r['host'] ?: null];
         }
     }
 } catch (PDOException $e) {
@@ -155,8 +155,8 @@ foreach ($byMac as $mac => $list) {
         if ($h['ip'] === $own) {
             $hosts[$mac] = $h;
         } elseif (isset($realByIp[$h['ip']])) {
-            $real = $realByIp[$h['ip']];
-            $hosts[$real] ??= ['ip' => $h['ip'], 'mac' => $real, 'vendor' => null, 'hostname' => $h['hostname']];
+            [$real, $wname] = $realByIp[$h['ip']];
+            $hosts[$real] ??= ['ip' => $h['ip'], 'mac' => $real, 'vendor' => null, 'hostname' => $h['hostname'] ?: $wname];
         } else {
             $behind[] = $h + ['proxy' => $mac];
         }
@@ -203,6 +203,8 @@ $insEvt = $db->prepare(
     'INSERT INTO device_events (device_id, event, old_ip, new_ip, created_at) VALUES (?, ?, ?, ?, ?)'
 );
 
+$delTmp = $db->prepare("DELETE FROM devices WHERE mac IS NULL AND name IS NULL AND vendor = 'hinter Repeater' AND ip = INET_ATON(?) AND id <> ?");
+
 $db->beginTransaction();
 $seenIds = [];
 
@@ -235,6 +237,8 @@ foreach ($hosts as $h) {
         $updDev->execute([$h['ip'], $h['hostname'], $h['vendor'], $now, $id]);
     }
     $seenIds[$id] = true;
+    // vorläufiger Eintrag „hinter Repeater“ (ohne MAC, ohne Namen) unter derselben IP ist jetzt überflüssig
+    $delTmp->execute([$h['ip'], $id]);
 }
 
 // Geräte hinter einem Repeater ohne echte MAC: über die IP erkennen (Eintrag ohne MAC), im Baum unter dem Repeater
