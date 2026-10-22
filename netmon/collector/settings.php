@@ -23,6 +23,7 @@ const NETMON_DEFAULTS = [
     'speedtest_request'   => 0,
     'room_layout'         => '',     // Positionen der Raumkarten (JSON)
     'sug_dismissed'       => '',     // ignorierte Verbindungsvorschläge (JSON)
+    'proxy_macs'          => '',     // Repeater mit MAC-Tarnung (JSON: {MAC: {ip: eigene IP}}), lernt der Scan selbst
     'quick_ports'         => '',     // Ports auf der Schnellzugriff-Seite (JSON: [[Geräte-ID, Port], …])
 ];
 

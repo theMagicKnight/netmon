@@ -43,7 +43,7 @@ if ($xml === false) {
 // ---------------------------------------------------------------
 // 2. Hosts auslesen
 // ---------------------------------------------------------------
-$hosts = [];
+$raw = [];
 foreach ($xml->host as $h) {
     if ((string) $h->status['state'] !== 'up') {
         continue;
@@ -73,11 +73,63 @@ foreach ($xml->host as $h) {
     if ($mac === null) {
         continue;
     }
-    $hosts[$mac] = compact('ip', 'mac', 'vendor', 'hostname');
+    $raw[] = compact('ip', 'mac', 'vendor', 'hostname');
+}
+
+// Repeater mit „MAC-Tarnung“: Ein FRITZ!Repeater (u. a.), der per WLAN an einem fremden Router hängt, zeigt alle Geräte
+// hinter sich mit SEINER MAC. Eine MAC mit mehreren IPs heißt also: Stellvertreter-MAC. netmon merkt sich solche MACs,
+// hält den Repeater auf seiner eigenen IP und ordnet die Geräte dahinter getrennt zu (echte MAC aus der WLAN-Liste des
+// Repeaters, sonst über die IP).
+$byMac = [];
+foreach ($raw as $h) {
+    $byMac[$h['mac']][] = $h;
+}
+$proxy = json_decode((string) ($s['proxy_macs'] ?? ''), true) ?: [];
+foreach ($byMac as $mac => $list) {
+    if (count($list) > 1 && !isset($proxy[$mac])) {
+        $proxy[$mac] = ['ip' => null];
+        fwrite(STDERR, date('c') . " $mac meldet sich unter " . count($list) . " IPs – Repeater mit MAC-Tarnung, Geräte dahinter werden getrennt erkannt\n");
+    }
+}
+$realByIp = [];   // IP → echte MAC laut WLAN-Liste eines Access Points/Repeaters
+try {
+    foreach ($db->query('SELECT mac, ip FROM wifi_clients WHERE ip IS NOT NULL') as $r) {
+        if (!isset($proxy[strtoupper($r['mac'])])) {
+            $realByIp[$r['ip']] = strtoupper($r['mac']);
+        }
+    }
+} catch (PDOException $e) {
+}
+$hosts = [];
+$behind = [];      // Geräte hinter einem Repeater ohne bekannte echte MAC: [host + proxy]
+$keepAlive = [];   // Repeater, deren eigene IP gerade nicht feststellbar ist: bleiben online, IP unverändert
+foreach ($byMac as $mac => $list) {
+    if (!isset($proxy[$mac])) {
+        $hosts[$mac] = end($list);
+        continue;
+    }
+    $own = proxyOwnIp($list, $proxy[$mac]['ip'] ?? null);
+    $proxy[$mac]['ip'] = $own;
+    if ($own === null) {
+        $keepAlive[] = $mac;
+    }
+    foreach ($list as $h) {
+        if ($h['ip'] === $own) {
+            $hosts[$mac] = $h;
+        } elseif (isset($realByIp[$h['ip']])) {
+            $real = $realByIp[$h['ip']];
+            $hosts[$real] ??= ['ip' => $h['ip'], 'mac' => $real, 'vendor' => null, 'hostname' => $h['hostname']];
+        } else {
+            $behind[] = $h + ['proxy' => $mac];
+        }
+    }
+}
+if ($proxy) {
+    netmon_set($db, 'proxy_macs', json_encode($proxy));
 }
 
 // Sicherung: Ein leerer Scan darf nicht alle Geräte offline setzen
-if (count($hosts) === 0) {
+if (count($hosts) + count($behind) === 0) {
     fwrite(STDERR, date('c') . " 0 Geräte gefunden, keine Änderungen.\n");
     exit(1);
 }
@@ -140,6 +192,41 @@ foreach ($hosts as $h) {
     $seenIds[$id] = true;
 }
 
+// Geräte hinter einem Repeater ohne echte MAC: über die IP erkennen (Eintrag ohne MAC), im Baum unter dem Repeater
+$selProxy = $db->prepare('SELECT id FROM devices WHERE mac = ?');
+$insBehind = $db->prepare(
+    'INSERT INTO devices (mac, ip, hostname, vendor, parent_id, is_online, first_seen, last_seen)
+     VALUES (NULL, INET_ATON(?), ?, ?, ?, 1, ?, ?)'
+);
+foreach ($behind as $h) {
+    $selProxy->execute([$h['proxy']]);
+    $rep = $selProxy->fetchColumn() ?: null;
+    $selPre->execute([$h['ip']]);
+    $dev = $selPre->fetch();
+    if (!$dev) {
+        $insBehind->execute([$h['ip'], $h['hostname'], 'hinter Repeater', $rep, $now, $now]);
+        $id = (int) $db->lastInsertId();
+        $insEvt->execute([$id, 'neu', null, ip2long($h['ip']), $now]);
+        $stats['neu']++;
+    } else {
+        $id = (int) $dev['id'];
+        if (!(int) $dev['is_online']) {
+            $insEvt->execute([$id, 'online', null, ip2long($h['ip']), $now]);
+            $stats['online']++;
+        }
+        $updDev->execute([$h['ip'], $h['hostname'], null, $now, $id]);
+    }
+    $seenIds[$id] = true;
+}
+// Repeater, dessen eigene IP diesmal nicht feststellbar war: gilt als online, IP bleibt
+foreach ($keepAlive as $mac) {
+    $selProxy->execute([$mac]);
+    if ($rid = $selProxy->fetchColumn()) {
+        $db->prepare('UPDATE devices SET is_online = 1, missed_scans = 0, last_seen = ? WHERE id = ?')->execute([$now, $rid]);
+        $seenIds[(int) $rid] = true;
+    }
+}
+
 // Nicht gesehene Geräte: Zähler erhöhen, ab Schwelle offline
 $rows = $db->query('SELECT id, ip, is_online, missed_scans FROM devices WHERE is_virtual = 0')->fetchAll();
 $updMiss = $db->prepare('UPDATE devices SET missed_scans = ?, is_online = ? WHERE id = ?');
@@ -159,13 +246,13 @@ foreach ($rows as $r) {
 }
 
 $db->prepare('INSERT INTO scans (started_at, duration_ms, hosts_up) VALUES (?, ?, ?)')
-   ->execute([$now, $durationMs, count($hosts)]);
+   ->execute([$now, $durationMs, count($hosts) + count($behind)]);
 
 $db->commit();
 
 printf(
     "%s %d Geräte online, %d ms | neu: %d, wieder online: %d, offline: %d, IP-Wechsel: %d\n",
-    $now, count($hosts), $durationMs, $stats['neu'], $stats['online'], $stats['offline'], $stats['ip_wechsel']
+    $now, count($hosts) + count($behind), $durationMs, $stats['neu'], $stats['online'], $stats['offline'], $stats['ip_wechsel']
 );
 
 // ---------------------------------------------------------------
@@ -176,6 +263,26 @@ printf(
 function isPrivateMac(string $mac): bool
 {
     return in_array(strtoupper($mac[1]), ['2', '6', 'A', 'E'], true);
+}
+
+// Eigene IP eines Repeaters mit MAC-Tarnung: die zuletzt erkannte, sonst die IP, die als AVM-Gerät antwortet
+// (TR-064-Beschreibung auf Port 49000 – Geräte hinter dem Repeater antworten dort nicht)
+function proxyOwnIp(array $list, ?string $cached): ?string
+{
+    $ips = array_column($list, 'ip');
+    if ($cached !== null && in_array($cached, $ips, true)) {
+        return $cached;
+    }
+    foreach ($ips as $ip) {
+        $c = curl_init("http://$ip:49000/tr64desc.xml");
+        curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 2, CURLOPT_TIMEOUT => 3]);
+        $r = (string) curl_exec($c);
+        curl_close($c);
+        if (stripos($r, '<deviceType>') !== false) {
+            return $ip;
+        }
+    }
+    return null;
 }
 
 // MAC der lokalen Schnittstelle, die die angegebene IP trägt

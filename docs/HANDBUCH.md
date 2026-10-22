@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.11 · Oktober 2026
+Stand: Version 1.12 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -227,6 +227,13 @@ erfolgreicher Abfrage gespeichert.
 **Repeater:** Typ „Access Point“, Treiber „AVM FRITZ!Box / Repeater“, **Benutzer leer lassen**, nur Kennwort –
 netmon ermittelt den internen Benutzer selbst. Liefert die WLAN-Clients (Signal kommt in Prozent und wird grob in dBm
 umgerechnet).
+
+**Repeater per WLAN an einem fremden Router** (z. B. FRITZ!Repeater am Speedport): Der Repeater zeigt alle Geräte hinter
+sich mit **seiner eigenen MAC-Adresse**. netmon erkennt das selbst (eine MAC unter mehreren IPs), hält den Repeater auf
+seiner eigenen IP und legt die Geräte dahinter getrennt an – im Baum **unter dem Repeater**. Ist der Repeater mit Kennwort
+eingerichtet, kommen deren **echte MAC-Adressen** aus seiner WLAN-Liste; sonst erkennt netmon sie nur an der IP
+(Hersteller „hinter Repeater“; wechselt die IP, entsteht ein neuer Eintrag). Darum: Repeater mit Kennwort einrichten und
+ihm im Router eine feste IP geben.
 
 ### 6.4 TP-Link Archer / Deco (Access Points)
 
@@ -496,6 +503,7 @@ Protokolle: `/var/log/netmon-tick.log`, `/var/log/netmon-scan.log`, `/var/log/ne
 | FritzBox: „Anmeldung fehlgeschlagen“ | TR-064 („Zugriff für Anwendungen“) an? Benutzer mit Recht „Einstellungen“? |
 | TP-Link: „Python-Paket fehlt“ | [6.4](#64-tp-link-archer--deco-access-points) – venv anlegen, `config.php` ergänzen |
 | Unbekanntes Modell / „Seitenaufbau unbekannt“ | Analyse-Paket erstellen ([Kapitel 14](#14-neue-geräte-anlernen)) |
+| Ein Eintrag springt ständig zwischen IPs, Hostname passt nicht | Repeater mit MAC-Tarnung – ab 1.12 erkennt netmon das selbst; Repeater mit Kennwort einrichten ([6.3](#63-fritzbox-und-fritzrepeater)) |
 | Gerät hängt im Baum falsch | „Hängt an“/Port im Gerät setzen oder Port-Beschreibung am Switch pflegen |
 | WLAN-Geräte am falschen AP | Den AP/Repeater selbst abfragen lassen (Treiber + Passwort) |
 | Gelbe Leitung (100M) | altes Gerät (Pi 3, TV) – normal; sonst Kabel/Stecker prüfen, Kabeltest |

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.0 – 2026-10-22
+
+- **Repeater mit MAC-Tarnung:** Ein FRITZ!Repeater (u. a.) per WLAN an einem fremden Router zeigt alle Geräte hinter sich
+  mit seiner eigenen MAC. Der Scan merkte sich je MAC nur eine IP – der Repeater-Eintrag sprang deshalb zwischen den IPs
+  seiner Geräte hin und her. Jetzt erkennt netmon solche MACs selbst (eine MAC unter mehreren IPs, gemerkt in
+  `proxy_macs`), hält den Repeater auf seiner eigenen IP (erkannt an der AVM-Schnittstelle auf Port 49000) und legt die
+  Geräte dahinter getrennt an, im Baum unter dem Repeater. Echte MAC-Adressen kommen aus der WLAN-Liste des Repeaters,
+  sobald er mit Kennwort abgefragt wird; bis dahin werden die Geräte an ihrer IP erkannt.
+
 ## 1.11.1 – 2026-10-21
 
 - Speedport am Smart 4R Typ A bestätigt: Anmeldung, Gäste-WLAN schalten, öffentliche IP.
