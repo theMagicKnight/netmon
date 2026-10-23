@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.13.1 – 2026-10-23
+
+- **Verbinden statt „Das ergäbe eine Schleife“:** Hing das neue Elternteil bisher unter dem Gerät (typisch: der Router war
+  über die Port-Beschreibung „fritz.box“ versehentlich unter einen Switch gehängt worden), hängt netmon diesen Zweig jetzt
+  selbst an die alte Stelle um und verbindet dann wie vorgeschlagen.
+- Vorschläge aus Port-Beschreibungen: Der Router liegt immer oberhalb – eine Beschreibung wie „fritz.box“ am Switch heißt
+  „dieser Port führt zum Router“ (Uplink), nicht „der Router hängt hier dran“.
+
+## 1.13.0 – 2026-10-23
+
+- **TP-Link Archer / Deco schalten:** WLAN, Gäste-WLAN und IoT-Netz an/aus (alle vorhandenen Bänder zusammen) und neu
+  starten – über das Passwort, das für die Abfrage ohnehin eingetragen ist (Paket tplinkrouterc6u). Profi-Ansicht: Knöpfe im
+  Geräte-Dialog; einfache Ansicht: eigene Karte unter „Router & WLAN“.
+- Einfache Ansicht: Vor dem WLAN-Ausschalten zählen jetzt auch die Geräte **hinter** einem Repeater im WLAN als betroffen
+  (Speedport → FRITZ!Repeater, Archer C80 → Repeater Terrasse). Bei mehreren Geräten trägt jede Karte Name und Ort; jede zeigt
+  nur die Knöpfe, die das Gerät kann.
+
 ## 1.12.2 – 2026-10-22
 
 - Geräte hinter einem Repeater: Sobald der Repeater die echte MAC meldet, verschwindet der vorläufige Eintrag „hinter Repeater“

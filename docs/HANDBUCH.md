@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.12 · Oktober 2026
+Stand: Version 1.13 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -204,7 +204,7 @@ erfolgreicher Abfrage gespeichert.
 | Netgear GS116E v2 / JGS | GS116Ev2, JGS516PE, JGS524Ev2 | Ports, Datenrate | – | gegen Beispielseiten getestet |
 | Netgear GS316EP/EPP | GS316EP, GS316EPP | Ports, Datenrate, PoE-Summe | LEDs | gegen Beispielseiten getestet |
 | TP-Link Easy Smart | TL-SG105E/108E/116E … | Ports, Tempo (keine Datenrate) | – | Entwurf |
-| TP-Link Archer / Deco | Archer AX55 Pro, Archer C80 … | WLAN-Clients, CPU/Speicher | – | im Einsatz |
+| TP-Link Archer / Deco | Archer AX55 Pro, Archer C80 … | WLAN-Clients, CPU/Speicher, Funknetze an/aus | WLAN, Gäste-WLAN, IoT-Netz, neu starten | Lesen im Einsatz, Schalten neu |
 | AVM FRITZ!Box / Repeater | 7590 u. a., FRITZ!Repeater | DSL, Internet-Rate, LAN, WLAN-Clients | – | im Einsatz |
 | Telekom Speedport | Smart 3, Smart 4, Smart 4R | DSL, LAN-Buchsen, WLAN-Clients; mit Passwort auch öffentliche IP | mit Passwort: WLAN, Gäste-WLAN, neu verbinden, neu starten | im Einsatz (Smart 4R Typ A) |
 
@@ -324,8 +324,8 @@ benutzte Ansicht** und startet beim nächsten Mal wieder darin.
   danach nicht mehr freigeben.
 - Geht etwas nicht, steht der Grund dabei: „geschützt“ (dahinter hängt ein Switch, der Router oder netmon),
   „Switch nicht eingerichtet“, „Switch hat sich länger nicht gemeldet“, „nur ansehen“.
-- **Router** (Speedport mit Gerätepasswort): WLAN aus/an – vorher steht da, wer dann kein Netz mehr hat –,
-  Gäste-WLAN aus/an, „Internet neu verbinden“.
+- **Router & WLAN** – je Gerät eine Karte (Speedport mit Gerätepasswort, TP-Link Archer): WLAN aus/an – vorher steht da,
+  wer dann kein Netz mehr hat, auch alles hinter einem Repeater –, Gäste-WLAN aus/an, beim Speedport „Internet neu verbinden“.
 - **Lichter an den Switches** aus/an.
 - **Was zuletzt passiert ist:** nur Sperren/Freigeben und Ausfälle von Router, Switches, Access Points.
 - **Hilfe** mit den häufigsten Fragen (auch: „Ich habe mich selbst ausgesperrt“).

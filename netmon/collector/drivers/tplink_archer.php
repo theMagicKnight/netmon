@@ -12,6 +12,9 @@ final class TplinkArcherDriver extends SwitchDriver
 {
     public const LABEL = 'TP-Link Archer / Deco (WLAN-Clients)';
     public const HINT  = '/tp-?link|archer|deco|ax\d{2}/i';
+    public const ACTIONS = ['wlan_on' => 'WLAN einschalten', 'wlan_off' => 'WLAN ausschalten', 'guest_on' => 'Gäste-WLAN einschalten',
+                            'guest_off' => 'Gäste-WLAN ausschalten', 'iot_on' => 'IoT-Netz einschalten', 'iot_off' => 'IoT-Netz ausschalten',
+                            'reboot' => 'Neu starten'];
 
     private ?array $data = null;
 
@@ -23,9 +26,15 @@ final class TplinkArcherDriver extends SwitchDriver
 
     protected function login(): void
     {
+        $this->data = $this->helper([]);
+    }
+
+    // Python-Helfer aufrufen; Antwort als Array
+    private function helper(array $args): array
+    {
         $cfg = require dirname(__DIR__, 2) . '/config.php';
         $python = $cfg['python'] ?? 'python3';
-        $cmd = [$python, __DIR__ . '/tplink_archer.py', $this->ip];
+        $cmd = array_merge([$python, __DIR__ . '/tplink_archer.py', $this->ip], $args);
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, ['NETMON_PASS' => $this->pass, 'PATH' => getenv('PATH') ?: '/usr/bin:/bin']);
         if (!is_resource($proc)) {
             throw new RuntimeException("Python nicht startbar ($python)");
@@ -40,10 +49,47 @@ final class TplinkArcherDriver extends SwitchDriver
             $msg = preg_match('/password|auth|login|401|403/i', $err) ? 'Anmeldung am Access Point fehlgeschlagen – Passwort prüfen' : 'Abfrage fehlgeschlagen';
             throw new RuntimeException($msg . ($err !== '' ? ' (' . mb_substr(strtok($err, "\n"), 0, 160) . ')' : ''));
         }
-        $this->data = json_decode((string) $out, true);
-        if (!is_array($this->data)) {
+        $data = json_decode((string) $out, true);
+        if (!is_array($data)) {
             throw new RuntimeException('Unverständliche Antwort vom Python-Helfer');
         }
+        return $data;
+    }
+
+    public function runAction(string $key): string
+    {
+        if (!isset(self::ACTIONS[$key])) {
+            throw new RuntimeException('Unbekannte Funktion');
+        }
+        $r = $this->helper([$key]);
+        if (empty($r['ok'])) {
+            throw new RuntimeException('Schalten fehlgeschlagen' . (!empty($r['errors']) ? ': ' . mb_substr(implode('; ', $r['errors']), 0, 160) : ''));
+        }
+        $labels = ['wlan_on' => 'WLAN eingeschaltet', 'wlan_off' => 'WLAN ausgeschaltet', 'guest_on' => 'Gäste-WLAN eingeschaltet',
+                   'guest_off' => 'Gäste-WLAN ausgeschaltet', 'iot_on' => 'IoT-Netz eingeschaltet', 'iot_off' => 'IoT-Netz ausgeschaltet',
+                   'reboot' => 'startet neu'];
+        $bands = array_map(fn($b) => ['2g' => '2,4 GHz', '5g' => '5 GHz', '6g' => '6 GHz'][$b] ?? $b, $r['done'] ?? []);
+        return $labels[$key] . ($bands && $key !== 'reboot' ? ' (' . implode(', ', $bands) . ')' : '')
+            . (!empty($r['errors']) ? ' – teilweise: ' . mb_substr(implode('; ', $r['errors']), 0, 100) : '');
+    }
+
+    // an/aus der Funknetze (für Knöpfe und einfache Ansicht): an, sobald ein Band an ist
+    private function netOn(string $prefix): ?bool
+    {
+        $s = $this->data['info']['status'] ?? [];
+        $v = array_filter([$s["{$prefix}_2g_enable"] ?? null, $s["{$prefix}_5g_enable"] ?? null, $s["{$prefix}_6g_enable"] ?? null], fn($x) => $x !== null);
+        return $v ? in_array(true, $v, true) : null;
+    }
+
+    public function metrics(): ?array
+    {
+        $m = [];
+        foreach (['wlan_on' => 'wifi', 'guest_on' => 'guest'] as $k => $p) {
+            if (($on = $this->netOn($p)) !== null) {
+                $m[$k] = $on ? 1 : 0;
+            }
+        }
+        return $m ?: null;
     }
 
     protected function logout(): void
@@ -134,6 +180,7 @@ final class TplinkArcherDriver extends SwitchDriver
             $checks[] = ['info', 'Gastnetz ist eingeschaltet'];
         }
         return ['model' => $i['model'] ?? null, 'firmware' => $i['firmware'] ?? null, 'serial' => null, 'name' => null,
-                'cpu' => $cpu, 'mem' => $mem, 'checks' => $checks];
+                'cpu' => $cpu, 'mem' => $mem, 'checks' => $checks,
+                'wlan' => ['on' => $this->netOn('wifi'), 'guestOn' => $this->netOn('guest'), 'iotOn' => $this->netOn('iot')]];
     }
 }

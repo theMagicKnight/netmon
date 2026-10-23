@@ -1465,10 +1465,12 @@ function renderSwInfo(d) {
   const checks = (i.checks || []).map(([lvl, t]) => `<li class="chk-${lvl}"><span>${ICON[lvl] || '·'}</span>${esc(t)}</li>`).join('');
   // Router schalten (Speedport mit Gerätepasswort): WLAN, Gäste-WLAN, neu verbinden, neu starten
   const acts = (swDrivers || []).find((x) => x.key === d.driver)?.actions || [];
-  const RA = { wlan_off: 'WLAN aus', wlan_on: 'WLAN an', guest_on: 'Gäste-WLAN an', guest_off: 'Gäste-WLAN aus', reconnect: 'Neu verbinden', reboot: 'Neu starten' };
+  const RA = { wlan_off: 'WLAN aus', wlan_on: 'WLAN an', guest_on: 'Gäste-WLAN an', guest_off: 'Gäste-WLAN aus', iot_on: 'IoT-Netz an', iot_off: 'IoT-Netz aus',
+               reconnect: 'Neu verbinden', reboot: 'Neu starten' };
   // nur den passenden Knopf zeigen, wenn der Zustand bekannt ist (WLAN an → nur „WLAN aus“)
   const w = i.wlan || {};
-  const hide = { wlan_on: w.on === true, wlan_off: w.on === false, guest_on: w.guestOn === true, guest_off: w.guestOn === false };
+  const hide = { wlan_on: w.on === true, wlan_off: w.on === false, guest_on: w.guestOn === true, guest_off: w.guestOn === false,
+                 iot_on: w.iotOn === true, iot_off: w.iotOn === false };
   const actRow = IS_ADMIN && acts.length && d.swRealPass ? `<div class="d-flex flex-wrap gap-2 mt-2">${acts.filter((k) => !hide[k]).map((k) =>
       `<button type="button" class="btn btn-ghost btn-sm${k === 'reboot' ? ' text-danger' : ''}" data-ract="${k}">${RA[k] || k}</button>`).join('')}</div>` : '';
   box.innerHTML = `<div class="small-label mb-1">${d.type === 'ap' ? 'Access Point' : d.type === 'router' ? 'Router' : 'Switch'}${i.checked ? ' · Stand ' + esc(fmtTime(i.checked)) : ''}</div>
@@ -1479,7 +1481,8 @@ $('#devSwInfo').addEventListener('click', async (e) => {
   const a = e.target.closest('[data-ract]');
   if (a && currentDev) {
     const k = a.dataset.ract;
-    const ask = { wlan_off: 'WLAN des Routers ausschalten? Alle Geräte darin verlieren das Netz.', reconnect: 'Internet neu verbinden? Es ist etwa eine halbe Minute weg.',
+    const ask = { wlan_off: 'WLAN ausschalten? Alle Geräte darin – und alles dahinter, z. B. ein Repeater – verlieren das Netz.',
+                  iot_off: 'IoT-Netz ausschalten? Smart-Home-Geräte darin verlieren das Netz.', reconnect: 'Internet neu verbinden? Es ist etwa eine halbe Minute weg.',
                   reboot: 'Router neu starten? Netz und Internet sind ein paar Minuten weg.' }[k];
     if (ask && !confirm(ask)) return;
     a.disabled = true;
@@ -2024,7 +2027,9 @@ function portSuggestions(sw) {
     const o = c[0];
     const cp = (o.ports || []).find((q) => q.desc && swNames.includes(norm(q.desc)));   // Gegenstelle am anderen Switch
     let up = null;   // true = o liegt oberhalb (Richtung Router)
-    if (sw.uplink === p.p) up = true;
+    if (o.type === 'router') up = true;            // der Router hängt nie unter einem Switch
+    else if (sw.type === 'router') up = false;
+    else if (sw.uplink === p.p) up = true;
     else if (cp && o.uplink === cp.p) up = false;
     else if (anc(sw).has(o.id)) up = true;
     else if (anc(o).has(sw.id)) up = false;

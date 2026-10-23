@@ -557,20 +557,27 @@ function connectDevices(array $in): array
             throw new InvalidArgumentException('Ungültiger Port');
         }
     }
-    // keine Schleife bauen: das neue Elternteil darf nicht unter dem Kind hängen
+    // Hängt das neue Elternteil bisher (auch über Umwege) unter dem Kind, wäre das eine Schleife. Die neue Angabe gilt:
+    // den Zweig, über den das Elternteil unter dem Kind hängt, an die bisherige Stelle des Kindes umhängen
+    // (typisch: der Router war versehentlich unter einen Switch gehängt worden).
     $st = db()->prepare('SELECT parent_id FROM devices WHERE id = ?');
-    for ($p = $parent, $n = 0; $p && $n < 50; $n++) {
+    $moved = null;
+    for ($p = $parent, $prev = null, $n = 0; $p && $n < 50; $n++) {
         if ($p === $child) {
-            throw new InvalidArgumentException('Das ergäbe eine Schleife – andersherum verbinden');
+            $st->execute([$child]);
+            $up = $st->fetchColumn() ?: null;
+            db()->prepare('UPDATE devices SET parent_id = ?, port = NULL WHERE id = ?')->execute([$up, $prev]);
+            $moved = $prev;
+            break;
         }
         $st->execute([$p]);
-        $p = (int) $st->fetchColumn();
+        [$prev, $p] = [$p, (int) $st->fetchColumn()];
     }
     db()->prepare('UPDATE devices SET parent_id = ?, port = ? WHERE id = ?')->execute([$parent, $port === '' ? null : $port, $child]);
     if ($uplink !== '') {
         db()->prepare('UPDATE devices SET sw_uplink = ? WHERE id = ?')->execute([(int) $uplink, $child]);
     }
-    return ['ok' => true];
+    return ['ok' => true, 'moved' => $moved];
 }
 
 // Vorschlag ignorieren (oder wieder zulassen); Schlüssel enthält die Beschreibung, eine Änderung macht ihn neu
@@ -811,7 +818,7 @@ function quick(): array
                   'affected' => $aff, 'onlineCount' => count(array_filter($aff, fn($a) => $a['online'])),
                   'self' => in_array(true, array_column($aff, 'me'), true), 'cannot' => $why, 'stale' => $stale];
     }
-    // Router mit schaltbaren Funktionen (Speedport): WLAN, Gäste-WLAN, neu verbinden
+    // Router und Access Points mit schaltbaren Funktionen (Speedport, TP-Link Archer …): WLAN, Gäste-WLAN, neu verbinden
     $routers = [];
     foreach ($db->query("SELECT id, sw_driver, sw_pass, sw_info FROM devices WHERE sw_driver IS NOT NULL AND sw_pass IS NOT NULL AND sw_pass <> ''") as $r) {
         try {
@@ -830,12 +837,16 @@ function quick(): array
             $m[$x['k']] = (int) $x['v'];   // der jüngste Wert gewinnt
         }
         $info = json_decode((string) $r['sw_info'], true) ?: [];
+        // betroffen beim WLAN-Ausschalten: alle WLAN-Geräte – und alles, was dahinter hängt (z. B. Repeater mit seinen Geräten)
         $wl = [];
-        foreach ($wifiOf[$rid] ?? [] as $x) {
-            $wl[] = ['name' => displayName($devs[$x]), 'online' => (bool) $devs[$x]['is_online'], 'me' => $x === $me];
+        foreach (array_diff($below($wifiOf[$rid] ?? []), [$rid]) as $x) {
+            if (!$devs[$x]['is_virtual']) {
+                $wl[] = ['name' => displayName($devs[$x]), 'online' => (bool) $devs[$x]['is_online'], 'me' => $x === $me];
+            }
         }
         usort($wl, fn($a, $b) => [$b['me'], $b['online'], $a['name']] <=> [$a['me'], $a['online'], $b['name']]);
-        $routers[] = ['id' => $rid, 'name' => displayName($devs[$rid]), 'model' => $info['model'] ?? null,
+        $routers[] = ['id' => $rid, 'name' => displayName($devs[$rid]), 'model' => $info['model'] ?? null, 'type' => $devs[$rid]['device_type'],
+                      'location' => $devs[$rid]['location'],
                       'canAct' => !in_array($r['sw_pass'], ['', '-'], true), 'actions' => array_keys($acts),
                       'wlan' => $m['wlan_on'] ?? null, 'guest' => $m['guest_on'] ?? null,
                       'ssid' => $info['wlan']['ssid'] ?? null, 'guestSsid' => $info['wlan']['guestSsid'] ?? null,

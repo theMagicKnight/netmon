@@ -82,7 +82,8 @@ $nm = ['role' => $me['role'], 'user' => $me['username'], 'csrf' => csrf_token()]
               background: color-mix(in srgb, var(--nm-offline) 14%, transparent); border: 1px solid color-mix(in srgb, var(--nm-offline) 50%, transparent); }
     .q-actions { display: flex; gap: .5rem; margin-top: .8rem; }
     .q-actions .q-btn { flex: 1; }
-    .q-router { padding: .2rem 1rem; }
+    .q-router { padding: .2rem 1rem; margin-bottom: .6rem; }
+    .q-router .q-rhead { font-size: .78rem; color: var(--bs-secondary-color); padding: .7rem 0 0; }
     .q-rr { display: flex; align-items: center; gap: .9rem; padding: .75rem 0; border-top: 1px solid var(--bs-border-color); }
     .q-rr:first-child { border-top: 0; }
     .q-rr .q-btn { min-width: 8.5rem; min-height: 2.7rem; }
@@ -134,7 +135,7 @@ $nm = ['role' => $me['role'], 'user' => $me['username'], 'csrf' => csrf_token()]
   <div class="q-grid">
   <div>
     <div id="qRouterBox" hidden>
-      <div class="q-sec">Router <button class="q-help-btn" type="button" data-help="router" aria-label="Erklärung">?</button></div>
+      <div class="q-sec">Router &amp; WLAN <button class="q-help-btn" type="button" data-help="router" aria-label="Erklärung">?</button></div>
       <div class="q-hint" id="hint-router" hidden>Das WLAN direkt vom Router ein- und ausschalten, das Gäste-WLAN für Besuch freigeben –
         oder bei Internet-Problemen neu verbinden (das Internet ist dabei etwa eine halbe Minute weg).</div>
       <div id="qRouters"></div>
@@ -299,11 +300,13 @@ function renderRouters() {
     const recAsk = `<div class="q-ask"><div class="h">Das Internet ist etwa eine halbe Minute weg – für alle im Haus.
         ${data.where.remote ? 'Du bist von unterwegs verbunden: netmon ist in der Zeit auch für dich weg und meldet sich danach wieder.' : ''}</div>
         ${yesNo('reconnect', 'Ja, neu verbinden')}</div>`;
+    const has = (k) => r.actions.includes(k);
     return `<div class="q-card q-router${r.wlan === 0 ? ' is-off' : ''}">
-      ${row(`WLAN${r.ssid ? ` „${esc(r.ssid)}“` : ''}`, wl, r.wlan === 0 ? btn('wlan_on', 'Einschalten', 'unlock') : btn('wlan_off', 'Ausschalten', 'lock'), r.id + ':wlan_off', wlanAsk)}
-      ${row(`Gäste-WLAN${r.guestSsid ? ` „${esc(r.guestSsid)}“` : ''}`, r.guest === null ? { text: 'Zustand unbekannt' } : { text: r.guest ? 'An – Besuch kann sich verbinden' : 'Aus' },
+      ${rs.length > 1 ? `<div class="q-rhead">${esc(r.name)}${r.location ? ' · ' + esc(r.location) : ''}</div>` : ''}
+      ${!has('wlan_off') ? '' : row(`WLAN${r.ssid ? ` „${esc(r.ssid)}“` : ''}`, wl, r.wlan === 0 ? btn('wlan_on', 'Einschalten', 'unlock') : btn('wlan_off', 'Ausschalten', 'lock'), r.id + ':wlan_off', wlanAsk)}
+      ${!has('guest_on') ? '' : row(`Gäste-WLAN${r.guestSsid ? ` „${esc(r.guestSsid)}“` : ''}`, r.guest === null ? { text: 'Zustand unbekannt' } : { text: r.guest ? 'An – Besuch kann sich verbinden' : 'Aus' },
             r.guest ? btn('guest_off', 'Ausschalten', 'plain') : btn('guest_on', 'Einschalten', 'unlock'), '', '')}
-      ${row('Internet neu verbinden', { text: 'Hilft, wenn das Internet hängt' }, btn('reconnect', 'Neu verbinden', 'plain'), r.id + ':reconnect', recAsk)}
+      ${!has('reconnect') ? '' : row('Internet neu verbinden', { text: 'Hilft, wenn das Internet hängt' }, btn('reconnect', 'Neu verbinden', 'plain'), r.id + ':reconnect', recAsk)}
       ${!r.canAct && data.canSwitch ? `<div class="q-note" style="margin-bottom:.8rem">Zum Schalten braucht netmon das Gerätepasswort von ${esc(r.name)} – das trägt der Admin in der Profi-Ansicht ein.</div>` : ''}
     </div>`;
   }).join('');
