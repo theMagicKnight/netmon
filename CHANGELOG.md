@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.0 – 2026-10-23
+
+- **Netgear GS116Ev2** (Treiber „GS116E v2 / JGS“), am echten Gerät mit Firmware V2.6.0.50:
+  - Link und Tempo werden jetzt erkannt, auch wenn der Switch auf Deutsch antwortet („Aktiv“, „1000M“, „Nicht verbunden“) –
+    vorher stand bei allen Ports „kein Link“.
+  - **Ports sperren/freigeben** wie die Weboberfläche (Portstatus → Geschwindigkeit „Deaktiviert“ bzw. „Auto“); Beschreibung
+    und Flusssteuerung bleiben erhalten. Gilt auch für Schnellzugriff, einfache Ansicht und `port.php`.
+
 ## 1.13.1 – 2026-10-23
 
 - **Verbinden statt „Das ergäbe eine Schleife“:** Hing das neue Elternteil bisher unter dem Gerät (typisch: der Router war

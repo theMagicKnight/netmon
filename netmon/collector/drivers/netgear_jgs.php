@@ -3,7 +3,9 @@
 // Diese Modelle haben eine andere Oberfläche als die übrigen Plus-Switches: Anmeldung über login.htm mit HMAC-MD5,
 // die Daten stehen als JavaScript-Zeilen in config/status_status.htm und config/monitoring_port_statistics.htm.
 // Seitenaufbau und Anmeldung nach py-netgear-plus (https://github.com/foxey/py-netgear-plus, Apache-2.0),
-// getestet gegen die dort veröffentlichten Beispielseiten eines JGS516PE und JGS524Ev2 – noch nicht an echter Hardware.
+// getestet gegen die dort veröffentlichten Beispielseiten eines JGS516PE und JGS524Ev2 und am echten GS116Ev2 (Firmware
+// V2.6.0.50). Die Statuszeilen kommen in der Sprache des Switches („Up“ bzw. „Aktiv“, „Disable“ bzw. „Deaktiviert“).
+// Port sperren/freigeben: POST status_status.htm (submitId=sysStatus, secureRand, speed 0 = aus / 1 = Auto, flow, description, port).
 
 declare(strict_types=1);
 
@@ -67,19 +69,17 @@ final class NetgearJgsDriver extends SwitchDriver
     {
         $html = $this->status ?? $this->get('config/status_status.htm');
         $ports = [];
-        // portConfigEntry[0] = '1?Beschreibung?Up?Auto?1000M?Disable'
-        if (preg_match_all("/portConfigEntry\\[(\\d+)\\]\\s*=\\s*'([^']*)'/", $html, $mm, PREG_SET_ORDER)) {
-            foreach ($mm as $m) {
-                $f = explode('?', $m[2]);
-                $p = (int) $m[1] + 1;
-                $link = strcasecmp($f[2] ?? '', 'Up') === 0;
-                $ports[$p] = [
-                    'link'  => $link,
-                    'speed' => $link && preg_match('/^(\d+)\s*M/i', $f[4] ?? '', $sm) ? $sm[1] . 'M' : null,
-                    'desc'  => trim($f[1] ?? '') !== '' ? trim($f[1]) : null,
-                    'rx' => null, 'tx' => null, 'crc' => null,
-                ];
-            }
+        // portConfigEntry[0] = '1?Beschreibung?Status?Einstellung?Verbindung?Flusssteuerung'
+        //   englisch: '1?fritz.box?Up?Auto?1000M?Disable'   deutsch: '1?fritz.box?Aktiv?Auto?1000M?Deaktiviert'
+        foreach ($this->entries($html) as $p => $f) {
+            $speed = preg_match('/^(\d+(?:\.\d+)?)\s*([MG])/i', $f[4] ?? '', $sm) ? ($sm[2] === 'G' || $sm[2] === 'g' ? (int) ($sm[1] * 1000) : (int) $sm[1]) . 'M' : null;
+            $ports[$p] = [
+                'link'  => $speed !== null || preg_match('/^(up|aktiv|active|link ?up)$/i', trim($f[2] ?? '')) === 1,
+                'off'   => self::isOff($f[3] ?? ''),
+                'speed' => $speed,
+                'desc'  => trim(html_entity_decode($f[1] ?? '', ENT_QUOTES)) !== '' ? trim(html_entity_decode($f[1], ENT_QUOTES)) : null,
+                'rx' => null, 'tx' => null, 'crc' => null,
+            ];
         }
         if (!$ports) {
             throw new SwitchParseError('Angemeldet, aber keine Ports gefunden – bitte Analyse-Paket erstellen und schicken');
@@ -99,6 +99,45 @@ final class NetgearJgsDriver extends SwitchDriver
         }
         ksort($ports);
         return $ports;
+    }
+
+    // [port => Felder] aus den portConfigEntry-Zeilen
+    private function entries(string $html): array
+    {
+        $out = [];
+        if (preg_match_all("/portConfigEntry\\[(\\d+)\\]\\s*=\\s*'([^']*)'/", $html, $mm, PREG_SET_ORDER)) {
+            foreach ($mm as $m) {
+                $out[(int) $m[1] + 1] = explode('?', $m[2]);
+            }
+        }
+        return $out;
+    }
+
+    // Port-Einstellung „Disable“ / „Deaktiviert“ (alles außer Auto und festen Geschwindigkeiten)
+    private static function isOff(string $cfg): bool
+    {
+        $cfg = trim($cfg);
+        return $cfg !== '' && preg_match('/auto|\d/i', $cfg) !== 1;
+    }
+
+    // Port ab-/einschalten wie die Weboberfläche (Portstatus → Geschwindigkeit „Deaktiviert“ bzw. „Auto“)
+    public function setPortEnabled(int $port, bool $on): void
+    {
+        $html = $this->get('config/status_status.htm');
+        $f = $this->entries($html)[$port] ?? null;
+        if ($f === null || !preg_match("/secureRand\\s*=\\s*'(\\w+)'/", $html, $m)) {
+            throw new SwitchParseError("Einstellungen von Port $port nicht gefunden – bitte Analyse-Paket schicken");
+        }
+        $flowOn = preg_match('/^(enable|aktiviert|on)$/i', trim($f[5] ?? '')) === 1;
+        $this->get('config/status_status.htm', [
+            'submitId' => 'sysStatus', 'secureRand' => $m[1], 'speed' => $on ? 1 : 0, 'flow' => $flowOn ? 1 : 0,
+            'description' => html_entity_decode($f[1] ?? '', ENT_QUOTES), 'port' => $port, 'submitEnd' => '',
+        ]);
+        $this->status = null;
+        $now = $this->entries($this->get('config/status_status.htm'))[$port] ?? null;
+        if ($now !== null && self::isOff($now[3] ?? '') === $on) {
+            throw new RuntimeException('Der Switch hat die Einstellung nicht übernommen');
+        }
     }
 
     public function info(): array

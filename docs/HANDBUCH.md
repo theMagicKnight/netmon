@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.13 · Oktober 2026
+Stand: Version 1.14 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -201,7 +201,7 @@ erfolgreicher Abfrage gespeichert.
 |---|---|---|---|---|
 | Netgear Plus | GS105E/v2, GS108E v3, GS305E, GS308E (alte Oberfläche) | Ports, Tempo, Beschreibung, Datenrate, CRC, Check | Ports sperren, Kabeltest | im Einsatz |
 | Netgear Plus, neue Oberfläche | GS308E v4, GS108E v4, GS30xEP | dto. | Ports sperren, LEDs, Kabeltest | im Einsatz |
-| Netgear GS116E v2 / JGS | GS116Ev2, JGS516PE, JGS524Ev2 | Ports, Datenrate | – | gegen Beispielseiten getestet |
+| Netgear GS116E v2 / JGS | GS116Ev2, JGS516PE, JGS524Ev2 | Ports, Tempo, Beschreibung, Datenrate | Ports sperren | GS116Ev2 im Einsatz |
 | Netgear GS316EP/EPP | GS316EP, GS316EPP | Ports, Datenrate, PoE-Summe | LEDs | gegen Beispielseiten getestet |
 | TP-Link Easy Smart | TL-SG105E/108E/116E … | Ports, Tempo (keine Datenrate) | – | Entwurf |
 | TP-Link Archer / Deco | Archer AX55 Pro, Archer C80 … | WLAN-Clients, CPU/Speicher, Funknetze an/aus | WLAN, Gäste-WLAN, IoT-Netz, neu starten | Lesen im Einsatz, Schalten neu |
@@ -295,7 +295,7 @@ Typischer Einsatz: ein eigener Access Point fürs Kinderzimmer.
   den neuen Zustand meldet (ein paar Sekunden).
 - Gesperrte Ports sind rot umrandet, jede Änderung steht unter Ereignisse.
 - Name und übrige Einstellungen des Ports bleiben erhalten.
-- Unterstützt: Netgear GS308Ev4/GS108Ev4 und die älteren Plus-Switches (GS105E/v2, GS108Ev3).
+- Unterstützt: Netgear GS308Ev4/GS108Ev4, die älteren Plus-Switches (GS105E/v2, GS108Ev3) und GS116Ev2.
 
 **Geschützte Ports (🛡):** Nicht sperrbar sind der Uplink-Port und jeder Port, hinter dem – auch mehrere Ebenen tief –
 ein **Switch**, der **Router** oder **netmon selbst** hängt. Sonst würde sich netmon vom Netz abschneiden und könnte den
