@@ -585,5 +585,6 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 
 /* „N ausgeblendet“ neben „Nur online“ */
 .stale-btn { background: none; border: 1px solid var(--bs-border-color); border-radius: 999px; color: var(--bs-secondary-color);
-  font-size: .78rem; padding: .1rem .6rem; margin-right: .75rem; align-self: center; white-space: nowrap; }
+  font-size: .78rem; padding: .1rem .6rem; margin-right: .75rem; align-self: center; white-space: nowrap; flex: 0 0 auto; }
+@media (max-width: 575.98px) { .stale-btn { margin-right: .4rem; padding: .1rem .45rem; } }
 .stale-btn:hover { color: var(--bs-body-color); border-color: var(--bs-secondary-color); }

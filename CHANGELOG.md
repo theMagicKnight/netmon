@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.1 – 2026-10-25
+
+- **Doku überarbeitet:** neue Bilder (Demo-Netz) inkl. einfacher Ansicht am PC und Handy; README (englisch) auf den aktuellen
+  Stand – Steuer-Funktionen, Treiber-Tabelle mit „liest / schaltet“, Rollen, Internet-Zugang; Handbuch mit Bildern,
+  neuem Abschnitt 7.4 „Router & WLAN schalten“, aktualisiertem Überblick, ersten Schritten und Fehlersuche.
+- Handy: „N ausgeblendet“ ist jetzt kurz („+N“) und schiebt den Schalter „Nur online“ nicht mehr aus dem Bild.
+- Einfache Ansicht: Aufruf vom Rechner selbst (localhost) gilt nicht mehr als „von unterwegs“.
+
 ## 1.14.0 – 2026-10-23
 
 - **Netgear GS116Ev2** (Treiber „GS116E v2 / JGS“), am echten Gerät mit Firmware V2.6.0.50:

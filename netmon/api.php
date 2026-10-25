@@ -764,7 +764,7 @@ function quick(): array
         }
     }
     $where = $me !== null ? ['device' => displayName($devs[$me]), 'via' => $via]
-        : ['device' => null, 'via' => null, 'remote' => !preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', $ip)];
+        : ['device' => null, 'via' => null, 'remote' => !preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|127\.)/', $ip)];
 
     $ageOf = [];   // Sekunden seit der letzten Abfrage je Port (in der Datenbank gerechnet – PHP und MariaDB können verschiedene Zeitzonen haben)
     foreach ($db->query('SELECT device_id, port, TIMESTAMPDIFF(SECOND, updated, NOW()) AS age FROM switch_ports') as $r) {

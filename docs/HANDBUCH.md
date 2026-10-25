@@ -1,10 +1,14 @@
 # netmon – Handbuch
 
-Stand: Version 1.14 · Oktober 2026
+Stand: Version 1.14.1 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
 steuern. Es läuft auf jedem kleinen Linux-Rechner mit Apache, PHP und MariaDB, z. B. einem Raspberry Pi.
+
+![Netzwerk-Baum](tree.png)
+
+*Alle Bilder zeigen ein Demo-Netz mit erfundenen Geräten.*
 
 ---
 
@@ -16,7 +20,7 @@ steuern. Es läuft auf jedem kleinen Linux-Rechner mit Apache, PHP und MariaDB, 
 4. [Erste Schritte](#4-erste-schritte)
 5. [Die Oberfläche](#5-die-oberfläche)
 6. [Geräte abfragen (Treiber)](#6-geräte-abfragen-treiber)
-7. [Steuern: LEDs, Ports sperren, Schnellzugriff](#7-steuern-leds-ports-sperren-schnellzugriff)
+7. [Steuern: LEDs, Ports, Router, einfache Ansicht](#7-steuern-leds-ports-router-einfache-ansicht)
 8. [Fernzugriff mit Tailscale](#8-fernzugriff-mit-tailscale)
 9. [Empfehlung: IP-Plan fürs Heimnetz](#9-empfehlung-ip-plan-fürs-heimnetz)
 10. [Einstellungen](#10-einstellungen)
@@ -36,11 +40,13 @@ steuern. Es läuft auf jedem kleinen Linux-Rechner mit Apache, PHP und MariaDB, 
 | **Ansichten** | Baum (wer hängt wo), Liste, Räume (Grundriss mit Leitungen zwischen Räumen) |
 | **Leitungen** | Tempo jeder Kabelverbindung farbig: 10M rot · 100M gelb · 1G grün · 2,5G+ blau · unbekannt grau |
 | **Switches** | Port-Status, Tempo, Beschreibung, Datenrate, Fehlerzähler, Kabeltest, Einstellungs-Check, Verlauf + Live |
-| **Router** | FRITZ!Box: DSL-Sync, Störabstand, CRC, Internet-Rate · Speedport: DSL-Sync, LAN-Buchsen, WLAN-Geräte |
-| **WLAN** | Access Points und Router mit WLAN melden ihre Clients mit Signal – netmon hängt die Geräte automatisch an den richtigen AP |
+| **Router** | FRITZ!Box: DSL-Sync, Störabstand, CRC, Internet-Rate · Speedport: DSL-Sync, LAN-Buchsen, WLAN-Geräte, öffentliche IP |
+| **WLAN** | Access Points, Repeater und Router melden ihre Clients mit Signal – netmon hängt die Geräte automatisch an den richtigen AP; Repeater, die Geräte hinter ihrer eigenen MAC verstecken, erkennt es selbst |
 | **Speedtest** | regelmäßige Messung (Ookla), Verlauf als Diagramm |
-| **Steuern** | LEDs der Switches an/aus (auch nach Zeitplan), Ports sperren/freigeben, Handy-Seite „Schnellzugriff“ |
-| **Fernzugriff** | über Tailscale ohne Portfreigabe – netmon und alle Geräte im Heimnetz von unterwegs |
+| **Steuern** | Switch-LEDs an/aus (auch nach Zeitplan), Ports sperren/freigeben (mit Schutz für Uplinks), WLAN und Gäste-WLAN von Speedport und TP-Link schalten, Internet neu verbinden |
+| **Einfache Ansicht** | für alle ohne Technik-Kenntnisse: Internet-Ampel, große Knöpfe, vor dem Sperren steht da, wer dann kein Netz mehr hat |
+| **Benutzer** | Admin, Familie (ansehen + sperren), Betrachter (nur ansehen); jeder startet in seiner Ansicht |
+| **Fernzugriff** | über Tailscale ohne Portfreigabe – oder aus dem Internet mit eigener Adresse, HTTPS und Login-Sperre |
 
 ---
 
@@ -121,7 +127,7 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
 
 1. **Einstellungen → Netzwerkscan:** Subnetz prüfen (z. B. `192.168.2.0/24`), Scan-Intervall wählen.
 2. **Router eintragen:** Router öffnen → Einstellungen → Typ „Router“ → Treiber wählen
-   (FRITZ!Box, Speedport) → „Verbinden & abfragen“.
+   (FRITZ!Box, Speedport – beim Speedport ist das Gerätepasswort freiwillig, nur zum Schalten nötig) → „Verbinden & abfragen“.
 3. **Switches eintragen:** je Switch Typ „Switch“, Treiber (oder „automatisch“), Passwort der Weboberfläche,
    **Uplink-Port** (der Port Richtung Router).
 4. **Access Points:** Typ „Access Point“, Treiber + Passwort – dann hängen die WLAN-Geräte automatisch darunter.
@@ -131,6 +137,8 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
 6. **Räume:** Feld „Raum / Ort“ füllen – die Raumansicht ordnet Geräte und Leitungen danach.
 7. **Geräte ohne IP** (unmanaged Switch, Patchfeld, Powerline-Adapter): unter Geräte → „Gerät ohne IP“ anlegen
    und wie einen Switch einhängen.
+8. **Für die Familie:** Einstellungen → Benutzer → neuer Benutzer mit Rolle „Familie“ und Ansicht „Einfach“; dazu die
+   wichtigsten Anschlüsse anheften (Switch → Port-Liste → ☆ Schnellzugriff), siehe [7.3](#73-einfache-ansicht-schnellzugriff).
 
 ---
 
@@ -160,6 +168,8 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
 - **Räume:** Raumkarten mit ihren Geräten, Leitungen zwischen den Räumen (Farbe = langsamster Port der Strecke).
   „Anordnen“ verschiebt die Karten.
 
+![Räume](rooms.png)
+
 ### 5.2 Gerätedialog
 
 Klick auf ein Gerät öffnet den Dialog:
@@ -169,7 +179,13 @@ Klick auf ein Gerät öffnet den Dialog:
   🔒 Sperren · ☆ Schnellzugriff · ⌁ Kabeltest (am PC rechts in der Zeile, am Handy darunter).
 - **Verkehr / Auslastung / Internet & DSL:** Verlauf 1 Std., 24 Std., 7 Tage und **Live**
   (Switch alle 5 s, Access Point alle 10 s; pausiert nach 10 Minuten).
+- Bei **Routern und Access Points**, die schalten können (Speedport mit Gerätepasswort, TP-Link Archer/Deco):
+  Knöpfe für WLAN, Gäste-WLAN (TP-Link auch IoT-Netz), neu verbinden (Speedport) und neu starten.
 - **Einstellungen:** Name, Typ, Raum, Hängt an, Port, Notizen, Treiber, Passwort, Uplink-Port, Analyse-Paket.
+
+| Switch mit Port-Liste | Verkehr eines Switches | Access Point |
+|---|---|---|
+| ![Switch](switch.png) | ![Verkehr](traffic.png) | ![Access Point](ap.png) |
 
 ### 5.3 Speedtest, Ereignisse, Geräte
 
@@ -178,10 +194,18 @@ Klick auf ein Gerät öffnet den Dialog:
   DSL-Neusynchronisation.
 - **Geräte:** Tabelle aller Geräte, filterbar.
 
+| Internet & DSL (FRITZ!Box) | Speedtest |
+|---|---|
+| ![DSL](dsl.png) | ![Speedtest](speed.png) |
+
 ### 5.4 Hell/Dunkel, Handy
 
 Mond/Sonne oben schaltet das Design um. netmon läuft auch als „App“ auf dem Handy: im Browser
-„Zum Startbildschirm hinzufügen“. Langer Druck auf das Symbol bietet „Schnellzugriff“ an.
+„Zum Startbildschirm hinzufügen“. Langer Druck auf das Symbol bietet „Schnellzugriff“ (die einfache Ansicht) an.
+
+| Hell | Handy |
+|---|---|
+| ![Liste, hell](list-light.png) | ![Handy](mobile.png) |
 
 > Samsung Internet: Ist dort „Dunkler Modus für Websites“ an, färbt der Browser die Seite selbst um.
 > netmon meldet seit 1.6.2, dass es das selbst kann – sollten die Beschriftungen im Baum trotzdem weiße Balken haben,
@@ -278,13 +302,14 @@ richtig, wenn der Repeater/AP selbst abgefragt wird.
 
 ---
 
-## 7. Steuern: LEDs, Ports sperren, Schnellzugriff
+## 7. Steuern: LEDs, Ports, Router, einfache Ansicht
 
 ### 7.1 Switch-LEDs
 
 - **Einstellungen → Switch-LEDs:** zwei Uhrzeiten (aus/an), z. B. 22:00 und 06:30. Gilt für alle Switches,
-  die es können (GS308Ev4/GS108Ev4/GS30xEP, GS316EP). Leer = nie.
-- Sofort: im Schnellzugriff „LEDs aus/an“ oder auf der Kommandozeile `leds.php aus|an`.
+  die es können (GS308Ev4/GS108Ev4/GS30xEP, GS316EP). Leer = nie. GS105Ev2 (alte Oberfläche) und GS116Ev2 haben
+  keinen LED-Schalter bzw. er ist noch nicht eingebaut.
+- Sofort: in der einfachen Ansicht „Lichter aus/an“ oder auf der Kommandozeile `leds.php aus|an`.
 
 ### 7.2 Ports sperren
 
@@ -332,6 +357,10 @@ benutzte Ansicht** und startet beim nächsten Mal wieder darin.
 - **Anschlüsse hinzufügen** (Admin): Profi-Ansicht → Switch öffnen → Port-Liste → **☆ Schnellzugriff**.
   Als Name erscheint die Port-Beschreibung vom Switch – also dort z. B. „WLAN Kinderzimmer“ eintragen.
 
+| Am PC | Am Handy, Rückfrage vor dem Sperren |
+|---|---|
+| ![Einfache Ansicht](simple.png) | ![Einfache Ansicht am Handy](simple-mobile.png) |
+
 **Benutzer und Rollen** (Einstellungen → Benutzer):
 
 | Rolle | darf | Start-Ansicht |
@@ -341,6 +370,18 @@ benutzte Ansicht** und startet beim nächsten Mal wieder darin.
 | Betrachter | nur ansehen | Einfach |
 
 Die Start-Ansicht ist nur ein Vorschlag – jeder kann umschalten.
+
+### 7.4 Router & WLAN schalten
+
+| Gerät | Was | Voraussetzung |
+|---|---|---|
+| Telekom Speedport | WLAN, Gäste-WLAN an/aus · Internet neu verbinden · neu starten | Gerätepasswort eingetragen ([6.5](#65-telekom-speedport)) |
+| TP-Link Archer / Deco | WLAN, Gäste-WLAN, IoT-Netz an/aus (alle Bänder zusammen) · neu starten | Python-Helfer wie zum Lesen ([6.4](#64-tp-link-archer--deco-access-points)) |
+
+- **Profi-Ansicht:** Knöpfe im Geräte-Dialog (nur Admin); sie zeigen nur die passende Richtung.
+- **Einfache Ansicht:** je Gerät eine Karte unter „Router & WLAN“ (Admin und Familie, Neustart nur Admin). Vor dem
+  WLAN-Ausschalten steht da, wer dann kein Netz mehr hat – auch alles hinter einem Repeater im WLAN.
+- Jede Schaltung steht unter Ereignisse.
 
 ---
 
@@ -505,6 +546,8 @@ Protokolle: `/var/log/netmon-tick.log`, `/var/log/netmon-scan.log`, `/var/log/ne
 | TP-Link: „Python-Paket fehlt“ | [6.4](#64-tp-link-archer--deco-access-points) – venv anlegen, `config.php` ergänzen |
 | Unbekanntes Modell / „Seitenaufbau unbekannt“ | Analyse-Paket erstellen ([Kapitel 14](#14-neue-geräte-anlernen)) |
 | Ein Eintrag springt ständig zwischen IPs, Hostname passt nicht | Repeater mit MAC-Tarnung – ab 1.12 erkennt netmon das selbst; Repeater mit Kennwort einrichten ([6.3](#63-fritzbox-und-fritzrepeater)) |
+| Verbinden: „Das ergäbe eine Schleife“ | ab 1.13.1 löst netmon das selbst; sonst beim Gerät, das falsch darunter hängt (oft der Router), „Hängt an“ leeren |
+| Keine Knöpfe 🔒 Sperren beim Switch | Treiber kann es nicht (siehe [6.1](#61-übersicht)), Port ist Uplink/geschützt, oder Benutzer ist kein Admin |
 | Gerät hängt im Baum falsch | „Hängt an“/Port im Gerät setzen oder Port-Beschreibung am Switch pflegen |
 | WLAN-Geräte am falschen AP | Den AP/Repeater selbst abfragen lassen (Treiber + Passwort) |
 | Gelbe Leitung (100M) | altes Gerät (Pi 3, TV) – normal; sonst Kabel/Stecker prüfen, Kabeltest |
@@ -535,7 +578,7 @@ gleichzeitig an (MariaDB `GET_LOCK`).
 ```
 netmon/                    → /var/www/html/netmon
   index.php                Hauptoberfläche
-  schnell.php              Schnellzugriff (Handy)
+  schnell.php              einfache Ansicht / Schnellzugriff
   login.php, logout.php
   api.php                  JSON-Schnittstelle
   db.php                   Anmeldung, Sitzung, Einstellungen

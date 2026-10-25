@@ -333,8 +333,10 @@ function updateStaleBtn(cnt) {
   const b = $('#staleBtn');
   if (!b) return;
   b.classList.toggle('d-none', cnt === 0);
-  b.textContent = showStale ? `${cnt} alte ausblenden` : `${cnt} ausgeblendet`;
-  b.title = showStale ? '' : `Länger als ${treeData.hideDays} Tag${treeData.hideDays === 1 ? '' : 'e'} offline – klicken zum Anzeigen`;
+  // am Handy kurz („+3“), sonst ausgeschrieben – damit „Nur online“ in die Zeile passt
+  b.innerHTML = showStale ? `<span class="d-sm-none">−${cnt}</span><span class="d-none d-sm-inline">${cnt} alte ausblenden</span>`
+    : `<span class="d-sm-none">+${cnt}</span><span class="d-none d-sm-inline">${cnt} ausgeblendet</span>`;
+  b.title = showStale ? 'Lange offline wieder ausblenden' : `${cnt} Gerät${cnt === 1 ? '' : 'e'} länger als ${treeData.hideDays} Tag${treeData.hideDays === 1 ? '' : 'e'} offline – klicken zum Anzeigen`;
 }
 function hiddenFilter() {
   const onlyOnline = $('#onlyOnline').checked;
