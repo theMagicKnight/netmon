@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.17.2 – 2026-10-27
+
+- Ansicht „Kabel“ zeigt nur noch, was im Schrank steckt: WLAN-Geräte (auch private WLAN-MACs und alles ohne Port direkt
+  am Router) stehen nicht mehr unter „ohne Port“. Kabelgeräte ohne Port-Angabe bleiben als Hinweis stehen.
+
 ## 1.17.1 – 2026-10-27
 
 - Kabel-Stil „Echt“: Kabel kommen immer von oben in die Ziel-Buchse und liegen nicht mehr quer über den Nachbar-Buchsen

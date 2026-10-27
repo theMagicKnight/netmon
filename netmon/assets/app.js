@@ -452,7 +452,10 @@ function drawRack() {
           <button type="button" class="rj ${p.guess ? (p.link ? 'on' : 'off') : portClass(p)}${isUp ? ' uplink' : ''}" data-sw="${n.dbId}" data-jack="${n.id}:${p.p}" title="${esc(tip)}">
             <span class="rj-num">${p.p}</span><span class="rj-jack"><span class="led"></span><span class="led2"></span></span></button></div>`;
     }).join('');
-    const loose = below.filter((c) => !isPanel(c) && (pnum(c) == null || !ports.some((p) => p.p === pnum(c))));
+    // „ohne Port“: nur, was ein Kabel haben müsste – WLAN-Geräte, private (WLAN-)MACs und alles direkt am Router
+    // ohne Port gehören nicht in den Schrank
+    const loose = below.filter((c) => !isPanel(c) && (pnum(c) == null || !ports.some((p) => p.p === pnum(c)))
+      && !c.wifi && !c.private && !c.stale && !(n.type === 'router' && pnum(c) == null));
     const sub = [n.ip, n.virtual ? 'ohne IP' : null, n.ports ? `${n.ports.filter((p) => p.link).length}/${n.ports.length} Ports aktiv` : null].filter(Boolean).join(' · ');
     const hasEnds = ports.some((p) => p.p === n.uplink || below.some((c) => !isPanel(c) && pnum(c) === p.p));
     return `<div class="rk-unit${n.virtual ? ' virtual' : ''}${hasEnds ? '' : ' no-ends'}" data-unit="${n.id}">

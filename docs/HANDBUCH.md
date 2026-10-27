@@ -173,7 +173,7 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
 - **Kabel:** Router und Switches **von vorn**, untereinander wie im Netzwerkschrank. Die Kabel laufen vom Port am
   oberen Gerät zum Uplink-Port des Switches darunter (Farbe = Tempo, gestrichelt = offline); Kabel, die einen Switch
   überspringen, laufen links durch die „Kabelrinne“. Über jeder Buchse steht das Gerät, das dort hängt (Symbol und
-  Name), gesperrte Ports sind rot umrandet. Ein Klick öffnet das Gerät. Geräte ohne Port-Angabe stehen unter „ohne Port“.
+  Name), gesperrte Ports sind rot umrandet. Ein Klick öffnet das Gerät. Kabelgeräte ohne Port-Angabe stehen unter „ohne Port“ (Hinweis: Port nachtragen); WLAN-Geräte erscheinen hier nicht – die Ansicht zeigt nur, was im Schrank steckt.
   Am Handy seitlich wischen.
   - **Kabel berühren** (Maus darüber): von wo nach wo, Port ↔ Port, Tempo und Datenrate – wie im Baum.
   - **Kabel-Stil** oben links: „Kabelrinne“ (eckig; liegt ein Gerät im Weg, läuft das Kabel links außen durch die Rinne)
