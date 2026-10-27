@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.14.1 · Oktober 2026
+Stand: Version 1.15 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -37,7 +37,7 @@ steuern. Es läuft auf jedem kleinen Linux-Rechner mit Apache, PHP und MariaDB, 
 | Bereich | Was netmon macht |
 |---|---|
 | **Netzwerkscan** | findet alle Geräte im Subnetz (nmap), merkt sich Name, Hersteller, IP, erstmals/zuletzt gesehen; erkennt neue Geräte, offline/online, IP-Wechsel |
-| **Ansichten** | Baum (wer hängt wo), Liste, Räume (Grundriss mit Leitungen zwischen Räumen) |
+| **Ansichten** | Baum (wer hängt wo), Liste, Räume (Grundriss mit Leitungen zwischen Räumen), Kabel (Router und Switches von vorn, Kabel von Port zu Port) |
 | **Leitungen** | Tempo jeder Kabelverbindung farbig: 10M rot · 100M gelb · 1G grün · 2,5G+ blau · unbekannt grau |
 | **Switches** | Port-Status, Tempo, Beschreibung, Datenrate, Fehlerzähler, Kabeltest, Einstellungs-Check, Verlauf + Live |
 | **Router** | FRITZ!Box: DSL-Sync, Störabstand, CRC, Internet-Rate · Speedport: DSL-Sync, LAN-Buchsen, WLAN-Geräte, öffentliche IP |
@@ -169,6 +169,14 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
   „Anordnen“ verschiebt die Karten.
 
 ![Räume](rooms.png)
+
+- **Kabel:** Router und Switches **von vorn**, untereinander wie im Netzwerkschrank. Die Kabel laufen vom Port am
+  oberen Gerät zum Uplink-Port des Switches darunter (Farbe = Tempo, gestrichelt = offline); Kabel, die einen Switch
+  überspringen, laufen links durch die „Kabelrinne“. Über jeder Buchse steht das Gerät, das dort hängt (Symbol und
+  Name), gesperrte Ports sind rot umrandet. Maus über Buchse oder Kabel zeigt Tempo und Datenrate, ein Klick öffnet
+  das Gerät. Geräte ohne Port-Angabe stehen unter „ohne Port“. Am Handy seitlich wischen.
+
+![Kabel](rack.png)
 
 ### 5.2 Gerätedialog
 

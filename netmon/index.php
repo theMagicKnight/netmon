@@ -30,6 +30,7 @@ $ico = [
     'out'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
     'list'   => '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
     'room'   => '<path d="M3 21h18"/><path d="M6 21V4h12v17"/><path d="M14.5 12.5h.01"/>',
+    'rack'   => '<path d="M3 4h18v6H3zM3 14h18v6H3z"/><path d="M6 7h.01M9 7h.01M12 7h.01M6 17h.01M9 17h.01M12 17h.01"/>',
     'tree'   => '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h10M7 11l10-5M7 13l10 5"/>',
     'online' => '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     'off'    => '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -148,6 +149,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
           <button type="button" data-view="tree"><?= $svg('tree') ?>Baum</button>
           <button type="button" data-view="list"><?= $svg('list') ?>Liste</button>
           <button type="button" data-view="rooms"><?= $svg('room') ?>Räume</button>
+          <button type="button" data-view="rack" title="Verkabelung: Router und Switches von vorn, Kabel von Port zu Port"><?= $svg('rack') ?>Kabel</button>
           <button type="button" class="stale-btn ms-auto d-none" id="staleBtn"></button>
           <div class="form-check form-switch mb-0 align-self-center only-online">
             <input class="form-check-input" type="checkbox" id="onlyOnline">
@@ -167,6 +169,7 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
         <div id="netList"></div>
         <div id="tree"></div>
         <div id="rooms"></div>
+        <div id="rack"></div>
       </section>
 
 <?php if ($speedOn): ?>

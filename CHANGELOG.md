@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.0 – 2026-10-27
+
+- **Neue Ansicht „Kabel“** (vierter Reiter neben Baum, Liste, Räume): Router und Switches von vorn untereinander wie im
+  Netzwerkschrank, Kabel vom Port am oberen Gerät zum Uplink-Port des Switches darunter (Farbe nach Tempo, gestrichelt
+  offline, lange Kabel links durch eine Kabelrinne). Über jeder Buchse das angeschlossene Gerät mit Symbol und schrägem
+  Namen; gesperrte Ports rot. Maus über Buchse/Kabel zeigt Tempo und Datenrate, Klick öffnet das Gerät. Switches ohne IP
+  (Patchfeld) erscheinen gestrichelt, Geräte ohne Port-Angabe als „ohne Port“. Am Handy seitlich wischen.
+- Handy: Reiter ohne Symbole, damit vier Ansichten, „+N“ und „Nur online“ in eine Zeile passen.
+
 ## 1.14.1 – 2026-10-25
 
 - **Doku überarbeitet:** neue Bilder (Demo-Netz) inkl. einfacher Ansicht am PC und Handy; README (englisch) auf den aktuellen

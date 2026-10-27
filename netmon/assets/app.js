@@ -373,21 +373,161 @@ function drawNetwork() {
     $('#tree').replaceChildren();
     return;
   }
-  $('#legendZone').classList.toggle('d-none', netView === 'rooms');
-  if (netView === 'rooms') {
-    $('#tree').replaceChildren();
-    $('#netList').replaceChildren();
-    drawRooms();
-  } else if (netView === 'list') {
-    $('#tree').replaceChildren();
-    $('#rooms').replaceChildren();
-    drawList(root);
-  } else {
-    $('#netList').replaceChildren();
-    $('#rooms').replaceChildren();
-    drawTree(root);
+  $('#legendZone').classList.toggle('d-none', netView === 'rooms' || netView === 'rack');
+  for (const [v, el] of [['rooms', '#rooms'], ['list', '#netList'], ['tree', '#tree'], ['rack', '#rack']]) {
+    if (v !== netView) $(el).replaceChildren();
   }
+  if (netView === 'rooms') drawRooms();
+  else if (netView === 'list') drawList(root);
+  else if (netView === 'rack') drawRack();
+  else drawTree(root);
 }
+
+// ---------------------------------------------------------------
+// Verkabelung: Router und Switches von vorn untereinander, Kabel von Port zu Port, Geräte über ihren Buchsen
+// ---------------------------------------------------------------
+function drawRack() {
+  const box = $('#rack');
+  const show = hiddenFilter();
+  const nodes = treeData.nodes.filter((n) => n.dbId && show(n));
+  const byId = new Map(treeData.nodes.map((n) => [n.id, n]));
+  const isPanel = (n) => ['router', 'switch'].includes(n.type);
+  const kids = new Map();   // Panel-ID → Geräte darunter (über Bereiche hinweg)
+  for (const n of nodes) {
+    const up = upstreamDevice(n, byId);
+    if (!up) continue;
+    if (!kids.has(up.id)) kids.set(up.id, []);
+    kids.get(up.id).push(n);
+  }
+  const pnum = (n) => (/^\d+$/.test(String(n.port ?? '')) ? Number(n.port) : null);
+
+  // Reihenfolge: Router oben, darunter die Switches in der Reihenfolge ihrer Ports am übergeordneten Gerät
+  const order = [];
+  const seen = new Set();
+  const visit = (n, depth) => {
+    if (seen.has(n.id)) return;
+    seen.add(n.id);
+    order.push({ n, depth });
+    (kids.get(n.id) || []).filter(isPanel).sort((a, b) => (pnum(a) ?? 99) - (pnum(b) ?? 99) || a.label.localeCompare(b.label, 'de'))
+      .forEach((c) => visit(c, depth + 1));
+  };
+  nodes.filter((n) => isPanel(n) && !(upstreamDevice(n, byId) && isPanel(upstreamDevice(n, byId))))
+    .sort((a, b) => (a.type === 'router' ? 0 : 1) - (b.type === 'router' ? 0 : 1) || ipNum(a.ip) - ipNum(b.ip))
+    .forEach((n) => visit(n, 0));
+  if (!order.length) {
+    box.innerHTML = '<div class="text-body-secondary small py-4">Noch kein Router oder Switch mit Treiber eingerichtet.</div>';
+    return;
+  }
+
+  const tipOf = (n) => [n.label, n.ip, n.online ? 'online' : 'offline'].filter(Boolean).join(' · ');
+  const endpoint = (list) => {
+    const d = list[0];
+    const icon = iconFor(d);
+    const more = list.length > 1 ? `<span class="rk-more">+${list.length - 1}</span>` : '';
+    return `<button type="button" class="rk-dev${d.online ? '' : ' off'}" data-dev="${d.dbId}" title="${esc(list.map(tipOf).join('\n'))}">
+        <span class="rk-name">${esc(d.label)}</span>
+        <span class="rk-ico">${icon ? `<svg viewBox="0 0 24 24">${icon}</svg>` : ''}</span>${more}<span class="rk-stem"></span></button>`;
+  };
+  const panels = order.map(({ n }) => {
+    const below = kids.get(n.id) || [];
+    // Ports: vom Treiber; sonst (Gerät ohne Abfrage, Switch ohne IP) aus den Port-Nummern der Geräte daran
+    let ports = n.ports && n.ports.length ? n.ports : null;
+    if (!ports) {
+      const max = Math.max(0, ...below.map(pnum).filter((v) => v != null), n.uplink || 0);
+      ports = max ? Array.from({ length: Math.max(max, 4) }, (_, i) => {
+        const on = below.some((c) => pnum(c) === i + 1 && c.online);
+        return { p: i + 1, link: on, speed: null, guess: true };
+      }) : [];
+    }
+    const jacks = ports.map((p) => {
+      const here = below.filter((c) => pnum(c) === p.p);
+      const ends = here.filter((c) => !isPanel(c));
+      const isUp = p.p === n.uplink;
+      const tip = [`Port ${p.p}${isUp ? ' · Uplink' : ''}`, p.desc && `„${p.desc}“`,
+        p.off ? 'gesperrt' : p.link ? (p.speed || 'Link') + (p.rx != null ? ` · ↓ ${fmtBps(p.rx)} ↑ ${fmtBps(p.tx)}` : '') : p.guess ? 'Zustand unbekannt' : 'kein Link']
+        .filter(Boolean).join('\n');
+      return `<div class="rk-slot">
+          <div class="rk-top">${ends.length ? endpoint(ends) : isUp ? '<span class="rk-up">↑ Uplink</span>' : ''}</div>
+          <button type="button" class="rj ${p.guess ? (p.link ? 'on' : 'off') : portClass(p)}${isUp ? ' uplink' : ''}" data-sw="${n.dbId}" data-jack="${n.id}:${p.p}" title="${esc(tip)}">
+            <span class="rj-num">${p.p}</span><span class="rj-jack"><span class="led"></span><span class="led2"></span></span></button></div>`;
+    }).join('');
+    const loose = below.filter((c) => !isPanel(c) && (pnum(c) == null || !ports.some((p) => p.p === pnum(c))));
+    const sub = [n.ip, n.virtual ? 'ohne IP' : null, n.ports ? `${n.ports.filter((p) => p.link).length}/${n.ports.length} Ports aktiv` : null].filter(Boolean).join(' · ');
+    const hasEnds = ports.some((p) => p.p === n.uplink || below.some((c) => !isPanel(c) && pnum(c) === p.p));
+    return `<div class="rk-unit${n.virtual ? ' virtual' : ''}${hasEnds ? '' : ' no-ends'}" data-unit="${n.id}">
+        <div class="sw-panel rk-panel">
+          ${ports.length ? `<div class="rk-jacks">${jacks}</div>` : ''}
+          <div class="sw-panel-head rk-head"><button type="button" class="rk-title" data-dev="${n.dbId}">${esc(n.label)}</button><span class="sw-panel-sum">${esc(sub)}</span></div>
+          ${loose.length ? `<div class="rk-loose"><span>ohne Port:</span>${loose.map((c) =>
+            `<button type="button" class="rk-chip${c.online ? '' : ' off'}" data-dev="${c.dbId}" title="${esc(tipOf(c))}">${esc(c.label)}</button>`).join('')}</div>` : ''}
+        </div></div>`;
+  }).join('');
+  box.innerHTML = `<div class="rk-scroll"><div class="rk-inner"><svg class="rk-cables"></svg>${panels}</div></div>`;
+  rackCables();
+}
+
+// Kabel: vom Port am übergeordneten Gerät zum Uplink-Port des Switches darunter (Farbe = Tempo des Ports oben).
+// Die Kabel liegen hinter den Geräten (wie hinten eingesteckt). Steht direkt darunter das Zielgerät, geht das Kabel
+// gerade hinüber; sonst links durch die Kabelrinne, damit es nicht über andere Switches läuft.
+function rackCables() {
+  const inner = $('#rack .rk-inner');
+  if (!inner) return;
+  const byId = new Map(treeData.nodes.map((n) => [n.id, n]));
+  const pnum = (n) => (/^\d+$/.test(String(n.port ?? '')) ? Number(n.port) : null);
+  const units = [...inner.querySelectorAll('.rk-unit')];
+  const idx = new Map(units.map((u, i) => [u.dataset.unit, i]));
+  const links = [];
+  for (const unit of units) {
+    const n = byId.get(unit.dataset.unit);
+    const up = n && upstreamDevice(n, byId);
+    if (!up || !idx.has(up.id)) continue;
+    links.push({ n, up, unit, far: idx.get(unit.dataset.unit) - idx.get(up.id) > 1 });
+  }
+  // Platz für die Kabelrinne links schaffen, dann erst messen
+  const lanes = links.filter((l) => l.far).length;
+  inner.style.paddingLeft = lanes ? `${18 + lanes * 12}px` : '';
+  const svg = inner.querySelector('.rk-cables');
+  const base = inner.getBoundingClientRect();
+  svg.setAttribute('width', inner.scrollWidth);
+  svg.setAttribute('height', inner.scrollHeight);
+  let lane = 0;
+  let out = '';
+  for (const { n, up, unit, far } of links) {
+    const src = inner.querySelector(`[data-unit="${up.id}"] .rk-panel`).getBoundingClientRect();
+    const dst = unit.querySelector('.rk-panel').getBoundingClientRect();
+    const fromJack = inner.querySelector(`[data-jack="${up.id}:${pnum(n)}"] .rj-jack`);
+    const toJack = n.uplink ? unit.querySelector(`[data-jack="${n.id}:${n.uplink}"] .rj-jack`) : null;
+    const fj = fromJack?.getBoundingClientRect();
+    const tj = toJack?.getBoundingClientRect();
+    const x1 = (fj ? fj.left + fj.width / 2 : src.left + 30) - base.left;
+    const y1 = (fj ? fj.bottom : src.bottom) - base.top;
+    const x2 = (tj ? tj.left + tj.width / 2 : dst.left + 30) - base.left;
+    const y2 = (tj ? tj.top : dst.top) - base.top;
+    const yOut = src.bottom - base.top;    // hier kommt das Kabel unten aus dem Gerät
+    const yIn = dst.top - base.top;        // hier geht es oben ins Zielgerät
+    let d;
+    if (!far) {
+      const mid = (yOut + yIn) / 2;
+      d = `M${x1},${y1} V${mid - 8} Q${x1},${mid} ${x1 + Math.sign(x2 - x1) * 8},${mid} H${x2 - Math.sign(x2 - x1) * 8} Q${x2},${mid} ${x2},${mid + 8} V${y2}`;
+      if (Math.abs(x2 - x1) < 16) d = `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`;
+    } else {
+      const gx = 10 + lane * 12;
+      const ya = yOut + 10 + (lane % 3) * 5;
+      const yb = yIn - 10 - (lane % 3) * 5;
+      d = `M${x1},${y1} V${ya - 6} Q${x1},${ya} ${x1 - 6},${ya} H${gx + 6} Q${gx},${ya} ${gx},${ya + 6} V${yb - 6} Q${gx},${yb} ${gx + 6},${yb} H${x2 - 6} Q${x2},${yb} ${x2},${yb + 6} V${y2}`;
+      lane++;
+    }
+    const port = up.ports?.find((p) => p.p === pnum(n));
+    const cls = !n.online ? 'off' : port?.link ? speedClass(port.speed) : '';
+    out += `<path class="rk-cable ${cls}" d="${d}"><title>${esc(`${up.label} Port ${pnum(n) ?? '?'} → ${n.label}${n.uplink ? ' Port ' + n.uplink : ''}${port?.speed ? ' · ' + port.speed : ''}`)}</title></path>`;
+  }
+  svg.innerHTML = out;
+}
+
+$('#rack').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dev], [data-sw]');
+  if (b) openDevice(Number(b.dataset.dev || b.dataset.sw));
+});
 
 // ---------------------------------------------------------------
 // Räume: eine Karte pro Raum/Ort, Linien = Kabel zwischen den Räumen

@@ -13,6 +13,8 @@ A **simple view** with an internet traffic light and big buttons is made for fam
 |---|---|
 | ![Simple view](docs/simple.png) | ![Simple view on a phone](docs/simple-mobile.png) |
 
+![Cabling view](docs/rack.png)
+
 | Rooms | Switch ports | Port traffic |
 |---|---|---|
 | ![Rooms](docs/rooms.png) | ![Switch](docs/switch.png) | ![Traffic](docs/traffic.png) |
@@ -28,7 +30,8 @@ A **simple view** with an internet traffic light and big buttons is made for fam
 - **Scan** with nmap: new devices, online/offline, IP changes as events; vendor from MAC; devices offline for a few
   days are hidden (kept in the database, shown again when they return)
 - **Views:** tree (router → switches → devices, router Wi-Fi as its own branch), list, rooms with freely arrangeable
-  cards and cable lines
+  cards and cable lines, and a **cabling view**: router and switches seen from the front, cables from port to port,
+  devices above their jacks
 - **Link speed in colour** on every cable: 10M red, 100M yellow, 1G green, 2.5G+ blue
 - **Device drivers:**
 
