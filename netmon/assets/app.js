@@ -387,6 +387,7 @@ function drawNetwork() {
 // Verkabelung: Router und Switches von vorn untereinander, Kabel von Port zu Port, Geräte über ihren Buchsen
 // ---------------------------------------------------------------
 function drawRack() {
+  if (rackDragging) return;   // nicht mitten im Ziehen neu aufbauen
   const box = $('#rack');
   const show = hiddenFilter();
   const nodes = treeData.nodes.filter((n) => n.dbId && show(n));
@@ -462,71 +463,256 @@ function drawRack() {
             `<button type="button" class="rk-chip${c.online ? '' : ' off'}" data-dev="${c.dbId}" title="${esc(tipOf(c))}">${esc(c.label)}</button>`).join('')}</div>` : ''}
         </div></div>`;
   }).join('');
-  box.innerHTML = `<div class="rk-scroll"><div class="rk-inner"><svg class="rk-cables"></svg>${panels}</div></div>`;
+  // Freie Anordnung (gespeichert) oder Bearbeiten; am Handy immer untereinander
+  const layout = rackEdit ? rackDraft : (treeData.rackLayout || {});
+  const plan = !MOBILE() && (rackEdit || order.some(({ n }) => layout[n.dbId]));
+  const toolbar = `<div class="rk-toolbar${rackEdit ? ' editing' : ''}">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Kabel-Stil">
+        <button type="button" class="btn btn-ghost${rackStyle === 'rinne' ? ' active' : ''}" data-rack-style="rinne" title="Kabel eckig, lange Kabel außen durch die Kabelrinne">Kabelrinne</button>
+        <button type="button" class="btn btn-ghost${rackStyle === 'bogen' ? ' active' : ''}" data-rack-style="bogen" title="Kabel in Bögen wie Patchkabel">Geschwungen</button>
+      </div>
+      <span class="me-auto small text-body-secondary">${rackEdit ? 'Geräte am Namen unten ziehen und ablegen.' : ''}</span>
+      ${MOBILE() || !IS_ADMIN ? '' : rackEdit
+        ? `<button type="button" class="btn btn-ghost btn-sm" data-rack-act="auto">Automatisch anordnen</button>
+           <button type="button" class="btn btn-ghost btn-sm" data-rack-act="cancel">Abbrechen</button>
+           <button type="button" class="btn btn-accent btn-sm" data-rack-act="save">Fertig</button>`
+        : `<button type="button" class="btn btn-ghost btn-sm" data-rack-act="edit">${ICON_MOVE} Anordnen</button>`}
+    </div>`;
+  box.innerHTML = `${toolbar}<div class="rk-scroll"><div class="rk-inner${plan ? ' plan' : ''}${rackEdit ? ' editing' : ''}"><svg class="rk-cables"></svg>${panels}</div></div>`;
+  if (plan) {
+    // Geräte ohne gespeicherte Position: unter die angeordneten
+    const inner = box.querySelector('.rk-inner');
+    let yFree = Math.max(0, ...order.map(({ n }) => (layout[n.dbId] ? layout[n.dbId][1] + 200 : 0)));
+    for (const u of inner.querySelectorAll('.rk-unit')) {
+      const id = byId.get(u.dataset.unit)?.dbId;
+      let pos = layout[id];
+      if (!pos) { pos = [0, yFree]; yFree += u.offsetHeight + 40; if (rackEdit) rackDraft[id] = pos; }
+      u.dataset.x = pos[0];   // gespeicherte Lage; links kommt noch die Kabelrinne dazu (rackCables)
+      u.style.top = pos[1] + 'px';
+    }
+  }
   rackCables();
 }
 
-// Kabel: vom Port am übergeordneten Gerät zum Uplink-Port des Switches darunter (Farbe = Tempo des Ports oben).
-// Die Kabel liegen hinter den Geräten (wie hinten eingesteckt). Steht direkt darunter das Zielgerät, geht das Kabel
-// gerade hinüber; sonst links durch die Kabelrinne, damit es nicht über andere Switches läuft.
+let rackEdit = false;
+let rackDraft = {};
+let rackDragging = false;
+let rackStyle = store.get('netmon-rack-style') === 'bogen' ? 'bogen' : 'rinne';
+let rackLinks = [];
+let rackGutter = 0;   // Breite der Kabelrinne links (px)
+
+// aktuelle Positionen (aus der automatischen Anordnung) als Ausgangspunkt fürs Anordnen
+function captureRackPositions() {
+  const out = {};
+  const inner = $('#rack .rk-inner');
+  const byId = new Map(treeData.nodes.map((n) => [n.id, n]));
+  const pad = parseFloat(getComputedStyle(inner).paddingLeft) || 0;
+  for (const u of inner.querySelectorAll('.rk-unit')) {
+    out[byId.get(u.dataset.unit).dbId] = [Math.max(0, Math.round((u.offsetLeft - pad) / 10) * 10), Math.round(u.offsetTop / 10) * 10];
+  }
+  return out;
+}
+
+// Pfad mit abgerundeten Ecken durch eine Folge von Punkten
+function roundedPath(pts, r = 8) {
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [px, py] = pts[i - 1], [x, y] = pts[i], [nx, ny] = pts[i + 1];
+    const l1 = Math.hypot(x - px, y - py), l2 = Math.hypot(nx - x, ny - y);
+    const rr = Math.min(r, l1 / 2, l2 / 2);
+    if (rr < 1) { d += ` L${x},${y}`; continue; }
+    const ax = x - ((x - px) / l1) * rr, ay = y - ((y - py) / l1) * rr;
+    const bx = x + ((nx - x) / l2) * rr, by = y + ((ny - y) / l2) * rr;
+    d += ` L${ax},${ay} Q${x},${y} ${bx},${by}`;
+  }
+  const [lx, ly] = pts[pts.length - 1];
+  return d + ` L${lx},${ly}`;
+}
+
+// Kabel: vom Port am übergeordneten Gerät zum Uplink-Port des Geräts darunter (Farbe = Tempo des Ports oben).
+// Die Kabel liegen hinter den Geräten (wie hinten eingesteckt). Liegt ein anderes Gerät im Weg, läuft das Kabel links
+// außen vorbei – eckig durch die Kabelrinne oder geschwungen wie ein Patchkabel.
 function rackCables() {
   const inner = $('#rack .rk-inner');
   if (!inner) return;
   const byId = new Map(treeData.nodes.map((n) => [n.id, n]));
   const pnum = (n) => (/^\d+$/.test(String(n.port ?? '')) ? Number(n.port) : null);
   const units = [...inner.querySelectorAll('.rk-unit')];
-  const idx = new Map(units.map((u, i) => [u.dataset.unit, i]));
+  const ids = new Set(units.map((u) => u.dataset.unit));
+  const plan = inner.classList.contains('plan');
   const links = [];
   for (const unit of units) {
     const n = byId.get(unit.dataset.unit);
     const up = n && upstreamDevice(n, byId);
-    if (!up || !idx.has(up.id)) continue;
-    links.push({ n, up, unit, far: idx.get(unit.dataset.unit) - idx.get(up.id) > 1 });
+    if (up && ids.has(up.id)) links.push({ n, up, unit });
   }
-  // Platz für die Kabelrinne links schaffen, dann erst messen
-  const lanes = links.filter((l) => l.far).length;
-  inner.style.paddingLeft = lanes ? `${18 + lanes * 12}px` : '';
+  // Wege prüfen: ein Weg ist frei, wenn keines seiner Teilstücke durch ein anderes Gerät läuft (Start und Ziel ausgenommen)
+  const panelRects = () => units.map((u) => { const r = u.querySelector('.rk-panel').getBoundingClientRect(); return { id: u.dataset.unit, l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+  const hits = (pts, rects, skip) => {
+    for (let k = 1; k < pts.length; k++) {
+      const [ax, ay] = pts[k - 1], [bx, by] = pts[k];
+      const l = Math.min(ax, bx) - 3, r = Math.max(ax, bx) + 3, t = Math.min(ay, by) - 3, b = Math.max(ay, by) + 3;
+      if (rects.some((c) => !skip.includes(c.id) && c.l < r && c.r > l && c.t < b && c.b > t)) return true;
+    }
+    return false;
+  };
+  const blocked = (l) => {
+    const a = inner.querySelector(`[data-unit="${l.up.id}"] .rk-panel`).getBoundingClientRect();
+    const b = l.unit.querySelector('.rk-panel').getBoundingClientRect();
+    if (b.top < a.bottom - 2) return true;   // Ziel nicht unterhalb: außen herum
+    const pn = /^\d+$/.test(String(l.n.port ?? '')) ? Number(l.n.port) : null;
+    const fj = inner.querySelector(`[data-jack="${l.up.id}:${pn}"] .rj-jack`)?.getBoundingClientRect();
+    const tj = (l.n.uplink ? l.unit.querySelector(`[data-jack="${l.n.id}:${l.n.uplink}"] .rj-jack`) : null)?.getBoundingClientRect();
+    const x1 = fj ? fj.left + fj.width / 2 : a.left + 30, x2 = tj ? tj.left + tj.width / 2 : b.left + 30;
+    const rects = panelRects();
+    return ![(a.bottom + b.top) / 2, a.bottom + 14, b.top - 14]
+      .some((y) => !hits([[x1, y], [x2, y], [x2, b.top]], rects, [l.up.id, l.n.id]));
+  };
+  inner.style.paddingLeft = '0px';
+  const farCount = links.filter((l) => (l.far = blocked(l))).length;
+  const gutter = farCount ? 18 + farCount * 12 : 0;
+  rackGutter = gutter;
+  if (plan) for (const u of units) u.style.left = ((Number(u.dataset.x) || 0) + gutter) + 'px';
+  else inner.style.paddingLeft = gutter + 'px';
+  if (plan) {
+    // angeordnet: Fläche so groß wie nötig
+    let w = 0, h = 0;
+    for (const u of units) { w = Math.max(w, u.offsetLeft + u.offsetWidth); h = Math.max(h, u.offsetTop + u.offsetHeight); }
+    inner.style.width = (w + 120) + 'px';
+    inner.style.height = (h + 40) + 'px';
+  } else {
+    inner.style.width = inner.style.height = '';
+  }
   const svg = inner.querySelector('.rk-cables');
   const base = inner.getBoundingClientRect();
   svg.setAttribute('width', inner.scrollWidth);
   svg.setAttribute('height', inner.scrollHeight);
   let lane = 0;
   let out = '';
-  for (const { n, up, unit, far } of links) {
+  rackLinks = [];
+  for (const l of links) {
+    const { n, up, unit } = l;
     const src = inner.querySelector(`[data-unit="${up.id}"] .rk-panel`).getBoundingClientRect();
     const dst = unit.querySelector('.rk-panel').getBoundingClientRect();
-    const fromJack = inner.querySelector(`[data-jack="${up.id}:${pnum(n)}"] .rj-jack`);
-    const toJack = n.uplink ? unit.querySelector(`[data-jack="${n.id}:${n.uplink}"] .rj-jack`) : null;
-    const fj = fromJack?.getBoundingClientRect();
-    const tj = toJack?.getBoundingClientRect();
+    const fj = inner.querySelector(`[data-jack="${up.id}:${pnum(n)}"] .rj-jack`)?.getBoundingClientRect();
+    const tj = (n.uplink ? unit.querySelector(`[data-jack="${n.id}:${n.uplink}"] .rj-jack`) : null)?.getBoundingClientRect();
     const x1 = (fj ? fj.left + fj.width / 2 : src.left + 30) - base.left;
     const y1 = (fj ? fj.bottom : src.bottom) - base.top;
     const x2 = (tj ? tj.left + tj.width / 2 : dst.left + 30) - base.left;
     const y2 = (tj ? tj.top : dst.top) - base.top;
-    const yOut = src.bottom - base.top;    // hier kommt das Kabel unten aus dem Gerät
-    const yIn = dst.top - base.top;        // hier geht es oben ins Zielgerät
+    const yOut = src.bottom - base.top;
+    const yIn = dst.top - base.top;
     let d;
-    if (!far) {
-      const mid = (yOut + yIn) / 2;
-      d = `M${x1},${y1} V${mid - 8} Q${x1},${mid} ${x1 + Math.sign(x2 - x1) * 8},${mid} H${x2 - Math.sign(x2 - x1) * 8} Q${x2},${mid} ${x2},${mid + 8} V${y2}`;
-      if (Math.abs(x2 - x1) < 16) d = `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`;
+    // freie Wege in dieser Reihenfolge: Mitte zwischen den Geräten, knapp unter dem Start, knapp über dem Ziel
+    const rects = panelRects().map((c) => ({ ...c, l: c.l - base.left, r: c.r - base.left, t: c.t - base.top, b: c.b - base.top }));
+    const skip = [up.id, n.id];
+    const route = yIn > yOut ? [(yOut + yIn) / 2, yOut + 14, yIn - 14]
+      .map((y) => [[x1, y1], [x1, y], [x2, y], [x2, y2]]).find((pts) => !hits(pts.slice(1, 3).concat([[x2, Math.min(y2, yIn)]]), rects, skip)) : null;
+    if (route) {
+      const my = route[1][1];
+      d = rackStyle === 'bogen' || Math.abs(x2 - x1) < 16
+        ? `M${x1},${y1} C${x1},${my + 10} ${x2},${my - 10} ${x2},${y2}`
+        : roundedPath(route);
     } else {
-      const gx = 10 + lane * 12;
-      const ya = yOut + 10 + (lane % 3) * 5;
-      const yb = yIn - 10 - (lane % 3) * 5;
-      d = `M${x1},${y1} V${ya - 6} Q${x1},${ya} ${x1 - 6},${ya} H${gx + 6} Q${gx},${ya} ${gx},${ya + 6} V${yb - 6} Q${gx},${yb} ${gx + 6},${yb} H${x2 - 6} Q${x2},${yb} ${x2},${yb + 6} V${y2}`;
+      const gx = 8 + lane * 12;
+      const ya = yOut + 12 + (lane % 3) * 6;
+      const yb = yIn - 12 - (lane % 3) * 6;
+      d = rackStyle === 'bogen'
+        ? `M${x1},${y1} C${x1},${ya + 60} ${gx},${ya + 10} ${gx},${(ya + yb) / 2} S${x2},${yb - 60} ${x2},${y2}`
+        : roundedPath([[x1, y1], [x1, ya], [gx, ya], [gx, yb], [x2, yb], [x2, y2]]);
       lane++;
     }
     const port = up.ports?.find((p) => p.p === pnum(n));
     const cls = !n.online ? 'off' : port?.link ? speedClass(port.speed) : '';
-    out += `<path class="rk-cable ${cls}" d="${d}"><title>${esc(`${up.label} Port ${pnum(n) ?? '?'} → ${n.label}${n.uplink ? ' Port ' + n.uplink : ''}${port?.speed ? ' · ' + port.speed : ''}`)}</title></path>`;
+    rackLinks.push({ from: up.label, to: n.label, cable: true, items: [{ up, d: n, port }] });
+    out += `<g data-link="${rackLinks.length - 1}"><path class="rk-cable ${cls}" d="${d}"></path><path class="rk-hit" d="${d}"></path></g>`;
   }
   svg.innerHTML = out;
 }
 
-$('#rack').addEventListener('click', (e) => {
+$('#rack').addEventListener('click', async (e) => {
+  const st = e.target.closest('[data-rack-style]');
+  if (st) {
+    rackStyle = st.dataset.rackStyle;
+    store.set('netmon-rack-style', rackStyle);
+    drawRack();
+    return;
+  }
+  const act = e.target.closest('[data-rack-act]')?.dataset.rackAct;
+  if (act === 'edit') {
+    rackDraft = { ...(treeData.rackLayout || {}) };
+    if (!Object.keys(rackDraft).length) rackDraft = captureRackPositions();
+    rackEdit = true;
+    drawRack();
+    return;
+  }
+  if (act === 'cancel') { rackEdit = false; drawRack(); return; }
+  if (act === 'auto' || act === 'save') {
+    if (act === 'auto' && !confirm('Eigene Anordnung verwerfen und wieder automatisch untereinander anordnen?')) return;
+    const layout = act === 'auto' ? {} : rackDraft;
+    try {
+      await post('save_rack_layout', { layout });
+      treeData.rackLayout = layout;
+      rackEdit = false;
+      drawRack();
+      notify(act === 'auto' ? 'Automatische Anordnung' : 'Anordnung gespeichert');
+    } catch (err) {
+      notify(err.message, false);
+    }
+    return;
+  }
+  if (rackEdit) return;   // beim Anordnen keine Dialoge öffnen
   const b = e.target.closest('[data-dev], [data-sw]');
   if (b) openDevice(Number(b.dataset.dev || b.dataset.sw));
+});
+
+// Kabel berühren: von wo nach wo, Port ↔ Port, Tempo, Datenrate (wie im Baum)
+$('#rack').addEventListener('mouseover', (e) => {
+  const g = e.target.closest('.rk-cables g');
+  if (!g) return;
+  g.classList.add('hl');
+  const l = rackLinks[Number(g.dataset.link)];
+  if (l) showCableTip(cableTipHtml(l), e);
+});
+$('#rack').addEventListener('mousemove', moveCableTip);
+$('#rack').addEventListener('mouseout', (e) => {
+  const g = e.target.closest('.rk-cables g');
+  if (g) { g.classList.remove('hl'); cableTip.classList.add('d-none'); }
+});
+
+// Anordnen: Gerät am Namen (unten) greifen, auf 10 px einrasten, Kabel folgen
+$('#rack').addEventListener('pointerdown', (e) => {
+  if (!rackEdit) return;
+  const head = e.target.closest('.rk-inner.plan .rk-head');
+  if (!head || e.button > 0) return;
+  const unit = head.closest('.rk-unit');
+  const id = treeData.nodes.find((n) => n.id === unit.dataset.unit)?.dbId;
+  const start = { x: e.clientX, y: e.clientY, l: Number(unit.dataset.x) || 0, t: parseFloat(unit.style.top) || 0 };
+  let raf = 0;
+  rackDragging = true;
+  unit.classList.add('dragging');
+  head.setPointerCapture(e.pointerId);
+  const move = (ev) => {
+    const l = Math.max(0, Math.round((start.l + ev.clientX - start.x) / 10) * 10);
+    const t = Math.max(0, Math.round((start.t + ev.clientY - start.y) / 10) * 10);
+    unit.dataset.x = l;
+    unit.style.left = (l + rackGutter) + 'px';
+    unit.style.top = t + 'px';
+    rackDraft[id] = [l, t];
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; rackCables(); });
+  };
+  const up = () => {
+    head.removeEventListener('pointermove', move);
+    head.removeEventListener('pointerup', up);
+    head.removeEventListener('pointercancel', up);
+    unit.classList.remove('dragging');
+    rackDragging = false;
+    rackCables();
+  };
+  head.addEventListener('pointermove', move);
+  head.addEventListener('pointerup', up);
+  head.addEventListener('pointercancel', up);
+  e.preventDefault();
 });
 
 // ---------------------------------------------------------------

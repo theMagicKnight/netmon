@@ -41,6 +41,7 @@ try {
         'delete_device'   => admin() ?? deleteDevice(body()),
         'create_device'   => admin() ?? createDevice(body()),
         'save_room_layout'=> admin() ?? saveRoomLayout(body()),
+        'save_rack_layout'=> admin() ?? saveRackLayout(body()),
         'switch_poll'     => admin() ?? switchPoll(body()),
         'switch_cable'    => admin() ?? switchCable(body()),
         'switch_port'     => family() ?? switchPortSet(body()),
@@ -253,7 +254,9 @@ function tree(): array
     }
 
     $layout = json_decode((string) settings()['room_layout'], true);
-    return ['root' => $rootId, 'nodes' => array_values($nodes), 'hideDays' => $hideDays, 'roomLayout' => is_array($layout) ? $layout : (object) []];
+    $rack = json_decode((string) settings()['rack_layout'], true);
+    return ['root' => $rootId, 'nodes' => array_values($nodes), 'hideDays' => $hideDays, 'roomLayout' => is_array($layout) ? $layout : (object) [],
+            'rackLayout' => is_array($rack) && $rack ? $rack : (object) []];
 }
 
 // WLAN-Clients aller APs: MAC => Zeile (leer, solange die Tabelle fehlt)
@@ -539,6 +542,20 @@ function saveRoomLayout(array $in): array
         $layout[$room] = [max(0, min(6000, (int) ($pos[0] ?? 0))), max(0, min(6000, (int) ($pos[1] ?? 0)))];
     }
     netmon_set(db(), 'room_layout', $layout ? json_encode($layout, JSON_UNESCAPED_UNICODE) : '');
+    return ['ok' => true];
+}
+
+// Positionen in der Ansicht „Kabel“ (Router/Switches frei angeordnet), für alle Benutzer gleich
+function saveRackLayout(array $in): array
+{
+    $layout = [];
+    foreach (($in['layout'] ?? []) as $id => $pos) {
+        if (!ctype_digit((string) $id) || !is_array($pos) || count($layout) >= 200) {
+            continue;
+        }
+        $layout[(string) (int) $id] = [max(0, min(8000, (int) ($pos[0] ?? 0))), max(0, min(8000, (int) ($pos[1] ?? 0)))];
+    }
+    netmon_set(db(), 'rack_layout', $layout ? json_encode($layout) : '');
     return ['ok' => true];
 }
 

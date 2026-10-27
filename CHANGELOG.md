@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.0 – 2026-10-27
+
+- Ansicht „Kabel“:
+  - **Anordnen** (Admin, am PC): Router und Switches frei verschieben, gespeichert für alle (neue Einstellung `rack_layout`);
+    „Automatisch anordnen“ stellt wieder untereinander.
+  - **Kabel-Stil** umschaltbar: „Kabelrinne“ (eckig, außen vorbei) oder „Geschwungen“ (Bögen wie Patchkabel), je Browser gemerkt.
+  - **Kabel berühren** zeigt wie im Baum: von wo nach wo, Port ↔ Port, Tempo, Datenrate; das Kabel wird hervorgehoben.
+  - Bessere Kabelführung: probiert mehrere Wege (Mitte, knapp unter dem Start, knapp über dem Ziel) und nimmt den ersten,
+    der an keinem anderen Gerät vorbeiführt; sonst außen durch die Kabelrinne.
+
 ## 1.15.0 – 2026-10-27
 
 - **Neue Ansicht „Kabel“** (vierter Reiter neben Baum, Liste, Räume): Router und Switches von vorn untereinander wie im

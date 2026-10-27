@@ -636,3 +636,15 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
   #viewBtns button[data-view] { padding: .55rem .45rem; }
   #viewBtns button[data-view] svg { display: none; }
 }
+/* Kabel: Werkzeugleiste, Anordnen, Berühren */
+#rack .rk-toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .6rem; }
+#rack .rk-toolbar .btn-group .btn.active { background: var(--nm-accent-soft); color: var(--nm-accent-text); border-color: var(--nm-accent); }
+#rack .rk-toolbar.editing { padding: .4rem .6rem; border: 1px dashed var(--nm-accent); border-radius: .6rem; background: var(--nm-accent-soft); }
+#rack .rk-inner.plan { display: block; }
+#rack .rk-inner.plan > .rk-unit { position: absolute; }
+#rack .rk-inner.plan .rk-unit { margin-left: 0; }
+#rack .rk-inner.plan.editing .rk-head { cursor: grab; outline: 1px dashed var(--nm-accent); outline-offset: 3px; border-radius: 4px; }
+#rack .rk-unit.dragging { z-index: 5; opacity: .92; }
+#rack .rk-unit.dragging .rk-head { cursor: grabbing; }
+#rack .rk-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: help; }
+#rack .rk-cables g.hl .rk-cable { stroke-width: 5; opacity: 1; filter: drop-shadow(0 0 4px rgba(127, 127, 127, .5)); }
