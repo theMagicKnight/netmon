@@ -75,6 +75,10 @@ abstract class SwitchDriver
     public function pages(): array { return []; }
     // Schaltbare Funktionen eines Routers stehen in ACTIONS ([schlüssel => beschriftung]); runAction() führt sie aus
     public function runAction(string $key): string { throw new RuntimeException('Dieses Gerät kann das nicht'); }
+    // Internet für ein Gerät im Heimnetz sperren (Router mit WAN_BLOCK)
+    public const WAN_BLOCK = false;
+    public function wanAccess(string $ip): array { throw new RuntimeException('Dieser Router kann Geräte nicht vom Internet sperren'); }
+    public function setWanBlocked(string $ip, bool $block): void { throw new RuntimeException('Dieser Router kann Geräte nicht vom Internet sperren'); }
 
     // Anmelden, Arbeit erledigen, immer abmelden (sonst sperren manche Switches weitere Anmeldungen)
     public function session(callable $fn)

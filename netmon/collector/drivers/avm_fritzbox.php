@@ -42,6 +42,41 @@ final class FritzBoxDriver extends SwitchDriver
         $this->model = (string) ($info['ModelName'] ?? '');
     }
 
+    // Kindersicherung per TR-064 (X_AVM-DE_HostFilter): „Internetnutzung gesperrt“ für ein Gerät, über seine IP.
+    // Das Gerät bleibt im Heimnetz erreichbar, kommt aber nicht mehr ins Internet.
+    public const WAN_BLOCK = true;
+
+    // ['blocked' => von Hand gesperrt, 'access' => granted|denied|error (denied auch durch ein Kindersicherungs-Profil)]
+    public function wanAccess(string $ip): array
+    {
+        $r = $this->hostFilter('GetWANAccessByIP', ['NewIPv4Address' => $ip]);
+        return ['blocked' => ($r['Disallow'] ?? '0') === '1', 'access' => (string) ($r['WANAccess'] ?? '')];
+    }
+
+    public function setWanBlocked(string $ip, bool $block): void
+    {
+        $this->hostFilter('DisallowWANAccessByIP', ['NewIPv4Address' => $ip, 'NewDisallow' => $block ? 1 : 0]);
+    }
+
+    private function hostFilter(string $action, array $args): array
+    {
+        if ($this->isRepeater()) {
+            throw new RuntimeException('Das kann nur die FritzBox selbst, nicht der Repeater');
+        }
+        try {
+            return $this->tr('x_hostfilter', 'X_AVM-DE_HostFilter:1', $action, $args);
+        } catch (RuntimeException $e) {
+            $m = $e->getMessage();
+            if (stripos($m, 'NoSuchEntry') !== false || str_contains($m, '714')) {
+                throw new RuntimeException('Die FritzBox kennt dieses Gerät (diese IP) nicht – es muss einmal im Heimnetz der FritzBox aufgetaucht sein');
+            }
+            if (stripos($m, 'Action not authorized') !== false || str_contains($m, '606') || stripos($m, 'Invalid Action') !== false) {
+                throw new RuntimeException('Der FritzBox-Benutzer braucht das Recht „FRITZ!Box Einstellungen“ (oder die FritzBox kann das noch nicht – FRITZ!OS aktualisieren)');
+            }
+            throw $e;
+        }
+    }
+
     private function isRepeater(): bool
     {
         return stripos($this->model, 'repeater') !== false;

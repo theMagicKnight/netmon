@@ -1780,7 +1780,7 @@ function renderDevices() {
     return `<div class="list-group-item list-group-item-action" data-dev="${d.id}">
       <div class="item-row">
         <span class="dot ${d.virtual ? 'virt' : d.online ? 'on' : 'off'}"></span>
-        <div class="main"><div class="title${d.name ? '' : ' text-body-secondary'}">${esc(devTitle(d))}</div><div class="meta">${esc(meta)}</div></div>
+        <div class="main"><div class="title${d.name ? '' : ' text-body-secondary'}">${esc(devTitle(d))}${d.wanBlocked ? ' <span class="wan-badge" title="Internet über die FritzBox gesperrt – im Heimnetz erreichbar">kein Internet</span>' : ''}</div><div class="meta">${esc(meta)}</div></div>
         <div class="side">${side}</div>
       </div></div>`;
   }).join('') || '<div class="list-group-item text-body-secondary">Keine passenden Geräte.</div>';
@@ -1792,6 +1792,40 @@ $('#devLoc').addEventListener('change', renderDevices);
 $('#devList').addEventListener('click', (e) => {
   const it = e.target.closest('[data-dev]');
   if (it) openDevice(Number(it.dataset.dev));
+});
+
+// Internet sperren über die FritzBox (Kindersicherung): Zustand live vom Router
+async function loadWan(d) {
+  const box = $('#devWan');
+  if (!box) return;
+  let w;
+  try { w = await api('wan_get', { id: d.id }); } catch (e) { return; }
+  if (currentDev !== d || !w.supported) return;
+  document.querySelectorAll('#devFacts .wan-row').forEach((el) => el.classList.remove('d-none'));
+  if (w.error) { box.innerHTML = `<span class="text-body-secondary">${esc(w.error)}</span>`; return; }
+  const can = window.NM?.role === 'admin' || window.NM?.role === 'family';
+  const state = w.blocked ? '<span class="wan-state off">gesperrt</span>'
+    : w.access === 'denied' ? '<span class="wan-state off">gesperrt durch Kindersicherungs-Profil der FritzBox</span>'
+    : '<span class="wan-state on">erlaubt</span>';
+  const warn = !w.blocked && (w.self || w.you) ? `<div class="small text-warning mt-1">${w.self
+    ? 'Das ist netmon selbst – ohne Internet gehen DynDNS, Zertifikat und Speedtest nicht mehr.'
+    : 'Das ist dein Gerät – danach hast du hier kein Internet mehr (das Heimnetz geht weiter).'}</div>` : '';
+  box.innerHTML = `${state}${can && (w.blocked || w.access !== 'denied')
+    ? ` <button type="button" class="btn btn-ghost btn-sm ms-2" data-wan="${w.blocked ? 0 : 1}">${w.blocked ? 'Internet freigeben' : 'Internet sperren'}</button>` : ''}
+    <div class="small text-body-secondary mt-1">${w.blocked ? 'Im Heimnetz weiter erreichbar (z. B. Drucken), aber kein Internet.'
+      : 'Sperren: bleibt im Heimnetz erreichbar, sendet aber nichts mehr nach außen.'} Über ${esc(w.router)}.</div>${warn}`;
+}
+$('#devFacts').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-wan]');
+  if (!b || !currentDev) return;
+  b.disabled = true;
+  try {
+    const r = await post('wan_set', { id: currentDev.id, block: b.dataset.wan === '1' });
+    notify(r.msg);
+    currentDev.wanBlocked = r.blocked;
+    loadWan(currentDev);
+    loadDevices().then(() => renderDevices()).catch(() => {});
+  } catch (err) { $('#devError').textContent = err.message; b.disabled = false; }
 });
 
 // Bearbeiten-Dialog
@@ -1826,7 +1860,9 @@ async function openDevice(id) {
     + (d.wifi ? fact('WLAN', `${d.wifi.signal == null ? 'verbunden' : `${sigBars(d.wifi.signal)} ${d.wifi.signal} dBm <span class="text-body-secondary">(${sigText(d.wifi.signal)})</span>`}
         · ${d.wifi.band ? d.wifi.band + ' GHz' : ''} · ${fmtKbps(d.wifi.tx)}<br><span class="text-body-secondary">an</span>
         ${esc(devTitle(devData.devices.find((x) => x.id === d.wifi.apId) || { name: 'AP' }))}${d.wifi.online ? ' <span class="text-body-secondary">· seit ' + fmtDur(d.wifi.online) + '</span>' : ''}`) : '')
-    + fact('Erstmals', esc(fmtTime(d.firstSeen, true))) + fact('Zuletzt', esc(fmtTime(d.lastSeen, true)));
+    + fact('Erstmals', esc(fmtTime(d.firstSeen, true))) + fact('Zuletzt', esc(fmtTime(d.lastSeen, true)))
+    + (d.ip && !d.virtual && !['router', 'switch'].includes(d.type) ? '<dt class="wan-row d-none">Internet</dt><dd class="wan-row d-none" id="devWan"></dd>' : '');
+  if (d.ip && !d.virtual && !['router', 'switch'].includes(d.type)) loadWan(d);
   $('#devDelete')?.classList.toggle('d-none', d.online);
   $('#devError').textContent = '';
   renderSwInfo(d);

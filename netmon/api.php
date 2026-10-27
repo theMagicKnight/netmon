@@ -49,6 +49,8 @@ try {
         'quick_pin'       => admin() ?? quickPin(body()),
         'leds_all'        => family() ?? ledsAll(body()),
         'router_action'   => family() ?? routerAction(body()),
+        'wan_get'         => wanGet((int) ($_GET['id'] ?? 0)),
+        'wan_set'         => family() ?? wanSet(body()),
         'connect'         => admin() ?? connectDevices(body()),
         'dismiss_suggestion' => admin() ?? dismissSuggestion(body()),
         'switch_drivers'  => admin() ?? switchDriverList(),
@@ -428,6 +430,7 @@ function devices(): array
     }
     $locations = array_values(array_unique(array_filter(array_map(fn($r) => $r['location'], $rows))));
     natcasesort($locations);
+    $wanBlocked = json_decode((string) settings()['wan_blocked'], true) ?: [];
     return [
         'dismissed' => json_decode((string) settings()['sug_dismissed'], true) ?: [],
         'quickPorts' => array_map(fn($x) => $x[0] . ':' . $x[1], quickList()),
@@ -437,6 +440,7 @@ function devices(): array
         'locations' => array_values($locations),
         'devices' => array_map(fn($r) => [
             'id'        => (int) $r['id'],
+            'wanBlocked'=> isset($wanBlocked[(int) $r['id']]),
             'mac'       => $r['mac'],
             'ip'        => $r['ip'],
             'ipn'       => (int) $r['ipn'],
@@ -983,6 +987,79 @@ function routerAction(array $in): array
     } catch (RuntimeException $e) {
         throw new InvalidArgumentException($e->getMessage());
     }
+}
+
+// Internet sperren über den Router (FritzBox-Kindersicherung): welcher Router kann das, und mit Passwort?
+function wanRouter(): ?array
+{
+    require_once NETMON_DIR . '/collector/switch_drivers.php';
+    $st = db()->query("SELECT id, INET_NTOA(ip) AS ip, COALESCE(name, hostname, INET_NTOA(ip)) AS label, sw_pass, sw_user, sw_driver
+                         FROM devices WHERE device_type = 'router' AND sw_driver IS NOT NULL AND ip IS NOT NULL AND is_virtual = 0
+                          AND sw_pass IS NOT NULL AND sw_pass NOT IN ('', '-') ORDER BY ip");
+    foreach ($st as $r) {
+        if ((switch_driver_class($r['sw_driver']))::WAN_BLOCK) {
+            return $r;
+        }
+    }
+    return null;
+}
+
+function wanTarget(int $id): array
+{
+    $st = db()->prepare("SELECT id, INET_NTOA(ip) AS ip, device_type, COALESCE(name, hostname, INET_NTOA(ip)) AS label FROM devices WHERE id = ? AND is_virtual = 0");
+    $st->execute([$id]);
+    $d = $st->fetch();
+    if (!$d || !$d['ip']) {
+        throw new InvalidArgumentException('Gerät ohne IP');
+    }
+    return $d;
+}
+
+function wanGet(int $id): array
+{
+    $d = wanTarget($id);
+    $r = wanRouter();
+    if (!$r || $d['device_type'] === 'router' || (int) $r['id'] === (int) $d['id']) {
+        return ['supported' => false];
+    }
+    $own = in_array($d['ip'], netmon_own_ips(), true);
+    try {
+        $a = switch_locked(db(), (int) $r['id'], 15, fn() => switch_open($r)->session(fn(SwitchDriver $x) => $x->wanAccess($d['ip'])));
+        return ['supported' => true, 'router' => $r['label'], 'blocked' => $a['blocked'], 'access' => $a['access'],
+                'self' => $own, 'you' => $d['ip'] === client_ip()];
+    } catch (RuntimeException $e) {
+        return ['supported' => true, 'router' => $r['label'], 'error' => $e->getMessage()];
+    }
+}
+
+function wanSet(array $in): array
+{
+    $d = wanTarget((int) ($in['id'] ?? 0));
+    $r = wanRouter();
+    if (!$r) {
+        throw new InvalidArgumentException('Kein Router eingerichtet, der Geräte vom Internet sperren kann (FritzBox mit Benutzer und Passwort)');
+    }
+    $block = !empty($in['block']);
+    try {
+        switch_locked(db(), (int) $r['id'], 15, fn() => switch_open($r)->session(fn(SwitchDriver $x) => $x->setWanBlocked($d['ip'], $block)));
+        $a = switch_open($r)->session(fn(SwitchDriver $x) => $x->wanAccess($d['ip']));
+    } catch (RuntimeException $e) {
+        throw new InvalidArgumentException($e->getMessage());
+    }
+    if ($a['blocked'] !== $block) {
+        throw new InvalidArgumentException('Die FritzBox hat die Änderung nicht übernommen – bitte nochmal versuchen');
+    }
+    $msg = ($block ? 'Internet gesperrt' : 'Internet freigegeben') . ' (über ' . $r['label'] . ')';
+    db()->prepare("INSERT INTO device_events (device_id, event, info, created_at) VALUES (?, 'port', ?, NOW())")
+        ->execute([$d['id'], $msg]);
+    $list = json_decode((string) settings()['wan_blocked'], true) ?: [];
+    if ($block) {
+        $list[$d['id']] = $d['ip'];
+    } else {
+        unset($list[$d['id']]);
+    }
+    netmon_set(db(), 'wan_blocked', json_encode((object) $list));
+    return ['ok' => true, 'msg' => $msg, 'blocked' => $a['blocked'], 'access' => $a['access']];
 }
 
 // LEDs aller Switches, die das können, sofort an/aus

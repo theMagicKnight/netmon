@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.0 – 2026-10-27
+
+- **Internet für ein Gerät sperren** über die Kindersicherung der FritzBox (TR-064 `X_AVM-DE_HostFilter`): Gerät bleibt im
+  Heimnetz erreichbar, kommt aber nicht mehr ins Internet – z. B. für den Drucker. Im Geräte-Dialog (Übersicht → Internet),
+  für Admin und Familie; „kein Internet“ in der Geräteliste; Eintrag unter Ereignisse; Hinweis bei netmon selbst und beim
+  eigenen Gerät. Neue Einstellung `wan_blocked`.
+
 ## 1.17.2 – 2026-10-27
 
 - Ansicht „Kabel“ zeigt nur noch, was im Schrank steckt: WLAN-Geräte (auch private WLAN-MACs und alles ohne Port direkt

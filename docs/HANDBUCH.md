@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.17 · Oktober 2026
+Stand: Version 1.18 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -398,6 +398,22 @@ Die Start-Ansicht ist nur ein Vorschlag – jeder kann umschalten.
 - **Einfache Ansicht:** je Gerät eine Karte unter „Router & WLAN“ (Admin und Familie, Neustart nur Admin). Vor dem
   WLAN-Ausschalten steht da, wer dann kein Netz mehr hat – auch alles hinter einem Repeater im WLAN.
 - Jede Schaltung steht unter Ereignisse.
+
+### 7.5 Internet für ein Gerät sperren (FritzBox)
+
+Beispiel Drucker: Er soll im Heimnetz drucken, aber nichts nach außen senden (keine Cloud, kein „Nach-Hause-Telefonieren“,
+keine ungefragten Firmware-Updates). Das erledigt die **Kindersicherung der FritzBox** – netmon schaltet sie per TR-064.
+
+- Gerät öffnen → **Übersicht** → Zeile **Internet**: „erlaubt“ / „gesperrt“ und der Knopf **Internet sperren** bzw.
+  **Internet freigeben** (Admin und Familie).
+- Das Gerät bleibt **im Heimnetz erreichbar**; nur der Weg ins Internet ist zu. Jederzeit wieder freizugeben.
+- In der Geräteliste steht dann **„kein Internet“** hinter dem Namen; jede Änderung steht unter Ereignisse.
+- Ist das Gerät in der FritzBox über ein Kindersicherungs-Profil gesperrt, zeigt netmon das an, ändert es aber nicht.
+- Vorsicht bei netmon selbst (DynDNS, Zertifikat, Speedtest) und beim eigenen PC – netmon weist darauf hin.
+
+**Voraussetzung:** Die FritzBox ist als Router mit Benutzer und Passwort eingetragen ([6.3](#63-fritzbox-und-fritzrepeater));
+der Benutzer braucht das Recht **„FRITZ!Box Einstellungen“**. Die FritzBox muss das Gerät kennen (es war schon einmal
+in ihrem Heimnetz). Geht nur über die FritzBox selbst, nicht über einen Repeater, und nicht mit dem Speedport.
 
 ---
 
