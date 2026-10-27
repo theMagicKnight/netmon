@@ -470,6 +470,7 @@ function drawRack() {
       <div class="btn-group btn-group-sm" role="group" aria-label="Kabel-Stil">
         <button type="button" class="btn btn-ghost${rackStyle === 'rinne' ? ' active' : ''}" data-rack-style="rinne" title="Kabel eckig, lange Kabel außen durch die Kabelrinne">Kabelrinne</button>
         <button type="button" class="btn btn-ghost${rackStyle === 'bogen' ? ' active' : ''}" data-rack-style="bogen" title="Kabel in Bögen wie Patchkabel">Geschwungen</button>
+        <button type="button" class="btn btn-ghost${rackStyle === 'echt' ? ' active' : ''}" data-rack-style="echt" title="Wie im echten Schrank: Stecker in den Buchsen, Kabel vorn – mal straff, mal locker, mal mit Schlaufe">Echt</button>
       </div>
       <span class="me-auto small text-body-secondary">${rackEdit ? 'Geräte am Namen unten ziehen und ablegen.' : ''}</span>
       ${MOBILE() || !IS_ADMIN ? '' : rackEdit
@@ -478,7 +479,7 @@ function drawRack() {
            <button type="button" class="btn btn-accent btn-sm" data-rack-act="save">Fertig</button>`
         : `<button type="button" class="btn btn-ghost btn-sm" data-rack-act="edit">${ICON_MOVE} Anordnen</button>`}
     </div>`;
-  box.innerHTML = `${toolbar}<div class="rk-scroll"><div class="rk-inner${plan ? ' plan' : ''}${rackEdit ? ' editing' : ''}"><svg class="rk-cables"></svg>${panels}</div></div>`;
+  box.innerHTML = `${toolbar}<div class="rk-scroll"><div class="rk-inner${plan ? ' plan' : ''}${rackEdit ? ' editing' : ''}${rackStyle === 'echt' ? ' real' : ''}"><svg class="rk-cables"></svg>${panels}</div></div>`;
   if (plan) {
     // Geräte ohne gespeicherte Position: unter die angeordneten
     const inner = box.querySelector('.rk-inner');
@@ -497,7 +498,7 @@ function drawRack() {
 let rackEdit = false;
 let rackDraft = {};
 let rackDragging = false;
-let rackStyle = store.get('netmon-rack-style') === 'bogen' ? 'bogen' : 'rinne';
+let rackStyle = ['bogen', 'echt'].includes(store.get('netmon-rack-style')) ? store.get('netmon-rack-style') : 'rinne';
 let rackLinks = [];
 let rackGutter = 0;   // Breite der Kabelrinne links (px)
 
@@ -566,7 +567,7 @@ function rackCables() {
     const x1 = fj ? fj.left + fj.width / 2 : a.left + 30, x2 = tj ? tj.left + tj.width / 2 : b.left + 30;
     const rects = panelRects();
     return ![(a.bottom + b.top) / 2, a.bottom + 14, b.top - 14]
-      .some((y) => !hits([[x1, y], [x2, y], [x2, b.top]], rects, [l.up.id, l.n.id]));
+      .some((y) => !hits([[x1, a.bottom], [x1, y], [x2, y], [x2, b.top]], rects, [l.up.id, l.n.id]));
   };
   inner.style.paddingLeft = '0px';
   const farCount = links.filter((l) => (l.far = blocked(l))).length;
@@ -590,6 +591,7 @@ function rackCables() {
   let lane = 0;
   let out = '';
   rackLinks = [];
+  const srcKeys = new Set();   // Buchsen, aus denen ein Kabel zu einem anderen Gerät geht
   for (const l of links) {
     const { n, up, unit } = l;
     const src = inner.querySelector(`[data-unit="${up.id}"] .rk-panel`).getBoundingClientRect();
@@ -607,8 +609,13 @@ function rackCables() {
     const rects = panelRects().map((c) => ({ ...c, l: c.l - base.left, r: c.r - base.left, t: c.t - base.top, b: c.b - base.top }));
     const skip = [up.id, n.id];
     const route = yIn > yOut ? [(yOut + yIn) / 2, yOut + 14, yIn - 14]
-      .map((y) => [[x1, y1], [x1, y], [x2, y], [x2, y2]]).find((pts) => !hits(pts.slice(1, 3).concat([[x2, Math.min(y2, yIn)]]), rects, skip)) : null;
-    if (route) {
+      .map((y) => [[x1, y1], [x1, y], [x2, y], [x2, y2]]).find((pts) => !hits([[x1, yOut]].concat(pts.slice(1, 3), [[x2, Math.min(y2, yIn)]]), rects, skip)) : null;
+    const real = rackStyle === 'echt';
+    const seed = up.id + '>' + n.id;
+    if (real) srcKeys.add(`${up.id}:${pnum(n)}`);
+    if (real && route) {
+      d = realCable(x1, y1 + 7, x2, y2 - 7, seed);
+    } else if (route) {
       const my = route[1][1];
       d = rackStyle === 'bogen' || Math.abs(x2 - x1) < 16
         ? `M${x1},${y1} C${x1},${my + 10} ${x2},${my - 10} ${x2},${y2}`
@@ -617,7 +624,8 @@ function rackCables() {
       const gx = 8 + lane * 12;
       const ya = yOut + 12 + (lane % 3) * 6;
       const yb = yIn - 12 - (lane % 3) * 6;
-      d = rackStyle === 'bogen'
+      d = real ? realCable(x1, y1 + 7, x2, y2 - 7, seed, gx)
+        : rackStyle === 'bogen'
         ? `M${x1},${y1} C${x1},${ya + 60} ${gx},${ya + 10} ${gx},${(ya + yb) / 2} S${x2},${yb - 60} ${x2},${y2}`
         : roundedPath([[x1, y1], [x1, ya], [gx, ya], [gx, yb], [x2, yb], [x2, y2]]);
       lane++;
@@ -625,9 +633,93 @@ function rackCables() {
     const port = up.ports?.find((p) => p.p === pnum(n));
     const cls = !n.online ? 'off' : port?.link ? speedClass(port.speed) : '';
     rackLinks.push({ from: up.label, to: n.label, cable: true, items: [{ up, d: n, port }] });
-    out += `<g data-link="${rackLinks.length - 1}"><path class="rk-cable ${cls}" d="${d}"></path><path class="rk-hit" d="${d}"></path></g>`;
+    out += rackStyle === 'echt'
+      ? `<g data-link="${rackLinks.length - 1}"><path class="rk-edge" d="${d}"></path><path class="rk-cable ${cls}" d="${d}"></path><path class="rk-glint" d="${d}"></path><path class="rk-hit" d="${d}"></path></g>`
+      : `<g data-link="${rackLinks.length - 1}"><path class="rk-cable ${cls}" d="${d}"></path><path class="rk-hit" d="${d}"></path></g>`;
   }
-  svg.innerHTML = out;
+  if (rackStyle === 'echt') out += realPlugs(inner, base, byId, srcKeys);
+  svg.innerHTML = (rackStyle === 'echt' ? '<defs><linearGradient id="rkPlug" x1="0" x2="1"><stop offset="0" stop-color="#eef2f6" stop-opacity=".95"/>'
+    + '<stop offset=".5" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#cfd5de" stop-opacity=".95"/></linearGradient></defs>' : '') + out;
+}
+
+// --- Stil „Echt“: Kabel mit Charakter (straff, locker, mit Schlaufe), Stecker in den Buchsen
+// fester Zufall je Kabel (bleibt beim Neuzeichnen gleich)
+function seeded(str) {
+  let h = 2166136261;
+  for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
+}
+// kubische Bézierkurve bei t teilen (für die Schlaufe in der Mitte)
+function splitCubic(p0, p1, p2, p3, t) {
+  const L = (a, b) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const a = L(p0, p1), b = L(p1, p2), c = L(p2, p3), d = L(a, b), e = L(b, c), m = L(d, e);
+  return [[p0, a, d, m], [m, e, c, p3]];
+}
+function realCable(x1, y1, x2, y2, seedStr, gx = null) {
+  const rnd = seeded(seedStr);
+  const r = rnd(), r2 = rnd(), r3 = rnd();
+  const kind = r < 0.25 ? 'straff' : r > 0.7 ? 'schlaufe' : 'locker';
+  const side = r2 > 0.5 ? 1 : -1;
+  const f = (pt) => `${pt[0].toFixed(1)},${pt[1].toFixed(1)}`;
+  if (gx !== null) {
+    // außen herum: weiter Bogen durch die Kabelrinne, mal mehr, mal weniger durchhängend
+    const sag = 30 + r3 * 70;
+    const mid = (y1 + y2) / 2;
+    return `M${f([x1, y1])} C${f([x1, y1 + 50 + sag])} ${f([Math.max(4, gx - r2 * 4), y1 + sag])} ${f([gx, mid])} S${f([x2 + side * 20, y2 - 60 - sag])} ${f([x2, y2])}`;
+  }
+  const dy = Math.max(40, y2 - y1);
+  const slack = kind === 'straff' ? 6 : kind === 'locker' ? 35 + r3 * 70 : 45 + r3 * 40;
+  // Schwerkraft: je weiter das Kabel quer läuft, desto mehr hängt es durch (straffe Kabel kaum)
+  const sag = Math.min(160, Math.abs(x2 - x1) * (kind === 'straff' ? 0.04 : 0.12 + r3 * 0.1));
+  const p0 = [x1, y1], p1 = [x1 + side * slack, y1 + dy * (kind === 'straff' ? 0.35 : 0.6) + sag];
+  const p2 = [x2 - side * slack * 0.7, y2 - dy * (kind === 'straff' ? 0.35 : 0.55) + sag], p3 = [x2, y2];
+  if (kind !== 'schlaufe') return `M${f(p0)} C${f(p1)} ${f(p2)} ${f(p3)}`;
+  // zu lang: eine Schlaufe in der Mitte
+  const [s1, s2] = splitCubic(p0, p1, p2, p3, 0.45 + r2 * 0.15);
+  const R = 9 + r3 * 7;
+  return `M${f(s1[0])} C${f(s1[1])} ${f(s1[2])} ${f(s1[3])} a${R},${R} 0 1 ${side > 0 ? 1 : 0} ${side * 2 * R},0 a${R},${R} 0 1 ${side > 0 ? 1 : 0} ${-side * 2 * R},0 C${f(s2[1])} ${f(s2[2])} ${f(s2[3])}`;
+}
+// Stecker in jeder belegten Buchse; kurze Kabel hoch zu den Endgeräten; Link ohne bekanntes Gerät: Kabel hängt nach unten weg
+function realPlugs(inner, base, byId, srcKeys) {
+  let out = '';
+  let plugs = '';
+  for (const slot of inner.querySelectorAll('.rk-slot')) {
+    const rj = slot.querySelector('.rj');
+    const key = rj.dataset.jack;
+    const dev = slot.querySelector('.rk-dev');
+    const isUp = rj.classList.contains('uplink');
+    const link = rj.classList.contains('on') || rj.classList.contains('slow');
+    if (!(dev || isUp || link || srcKeys.has(key))) continue;
+    const r = slot.querySelector('.rj-jack').getBoundingClientRect();
+    const x = r.left - base.left, y = r.top - base.top, w = r.width, h = r.height, cx = x + w / 2;
+    const cls = ['sp-x', 'sp-1000', 'sp-100', 'sp-10'].find((c) => rj.classList.contains(c)) || '';
+    const off = rj.classList.contains('locked') || (dev && dev.classList.contains('off')) ? ' off' : '';
+    const bootUp = (dev || isUp) && !srcKeys.has(key);
+    const rnd = seeded(key);
+    if (dev) {
+      const ico = slot.querySelector('.rk-ico').getBoundingClientRect();
+      const ix = ico.left + ico.width / 2 - base.left, iy = ico.bottom - base.top;
+      const b = (rnd() - 0.5) * 18;
+      const d = `M${cx},${y - 6} C${cx + b},${y - 14} ${ix - b},${iy + 10} ${ix},${iy}`;
+      const [sw, port] = key.split(':');
+      const swNode = byId.get(sw), devNode = treeData.nodes.find((q) => String(q.dbId) === dev.dataset.dev);
+      if (swNode && devNode) {
+        rackLinks.push({ from: swNode.label, to: devNode.label, cable: true,
+          items: [{ up: swNode, d: devNode, port: swNode.ports?.find((q) => q.p === Number(port)) }] });
+        out += `<g data-link="${rackLinks.length - 1}"><path class="rk-edge" d="${d}"></path><path class="rk-cable ${cls}${off}" d="${d}"></path><path class="rk-hit" d="${d}"></path></g>`;
+      }
+    } else if (link && !isUp && !srcKeys.has(key)) {
+      // Link, aber kein bekanntes Gerät: Kabel hängt nach unten weg
+      const s = rnd() > 0.5 ? 1 : -1, l = 26 + rnd() * 20;
+      const d = `M${cx},${y + h + 6} C${cx},${y + h + l} ${cx + s * 10},${y + h + l + 6} ${cx + s * 16},${y + h + l + 14}`;
+      out += `<path class="rk-edge" d="${d}"></path><path class="rk-cable ${cls}" d="${d}"></path>`;
+    }
+    // Stecker: durchsichtiges Gehäuse, goldene Kontakte, Knickschutz in Kabelfarbe (zur Seite, auf der das Kabel abgeht)
+    plugs += `<rect class="rk-plug" x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${h - 4}" rx="3"></rect>`;
+    for (let k = 0; k < 8; k++) plugs += `<rect class="rk-pin" x="${(x + 7 + k * ((w - 14) / 8)).toFixed(1)}" y="${bootUp ? y + h - 11 : y + 6}" width="2" height="5"></rect>`;
+    plugs += `<rect class="rk-boot ${cls}${off}" x="${x + 6}" y="${bootUp ? y - 6 : y + h - 2}" width="${w - 12}" height="8" rx="3"></rect>`;
+  }
+  return out + plugs;
 }
 
 $('#rack').addEventListener('click', async (e) => {

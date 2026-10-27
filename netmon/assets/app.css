@@ -648,3 +648,26 @@ h1, h2, h3, .brand, .modal-title, .page-title, .stat-card .value { font-family: 
 #rack .rk-unit.dragging .rk-head { cursor: grabbing; }
 #rack .rk-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: help; }
 #rack .rk-cables g.hl .rk-cable { stroke-width: 5; opacity: 1; filter: drop-shadow(0 0 4px rgba(127, 127, 127, .5)); }
+/* Kabel-Stil „Echt“: Kabel und Stecker vorn, Namen und Symbole bleiben lesbar */
+#rack .rk-inner.real .rk-unit { z-index: auto; }
+#rack .rk-inner.real .rk-cables { z-index: 4; }
+#rack .rk-inner.real .rk-dev { z-index: 5; }
+#rack .rk-inner.real .rk-stem { display: none; }
+#rack .rk-inner.real .rk-head, #rack .rk-inner.real .rk-loose, #rack .rk-inner.real .rk-up { position: relative; z-index: 5; }
+#rack .rk-inner.real .rk-head .rk-title, #rack .rk-inner.real .rk-head .sw-panel-sum, #rack .rk-inner.real .rk-up {
+  background: color-mix(in srgb, #1f222b 82%, transparent); border-radius: 4px; padding: 0 .3rem; }
+[data-bs-theme="light"] #rack .rk-inner.real .rk-head .rk-title, [data-bs-theme="light"] #rack .rk-inner.real .rk-head .sw-panel-sum,
+[data-bs-theme="light"] #rack .rk-inner.real .rk-up { background: color-mix(in srgb, #dfe2ea 85%, transparent); }
+#rack .rk-inner.real .rk-cable { stroke-width: 6; opacity: 1; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .45)); }
+#rack .rk-inner.real .rk-cable.off { stroke-dasharray: none; opacity: .45; }
+#rack .rk-inner.real .rk-edge { fill: none; stroke: #0b0c10; stroke-width: 8.5; stroke-linecap: round; opacity: .65; }
+#rack .rk-inner.real .rk-glint { fill: none; stroke: #fff; stroke-width: 1.3; stroke-linecap: round; opacity: .3; transform: translate(-1.3px, -1px); pointer-events: none; }
+#rack .rk-inner.real .rk-cables g.hl .rk-cable { stroke-width: 7.5; }
+#rack .rk-plug { fill: url(#rkPlug); stroke: #9aa3b2; stroke-width: 1; }
+#rack .rk-pin { fill: #c9a227; opacity: .9; }
+#rack .rk-boot { fill: var(--nm-muted); }
+#rack .rk-boot.sp-10 { fill: var(--sp-10); } #rack .rk-boot.sp-100 { fill: var(--sp-100); }
+#rack .rk-boot.sp-1000 { fill: var(--sp-1000); } #rack .rk-boot.sp-x { fill: var(--sp-x); }
+#rack .rk-boot.off { opacity: .5; }
+#rack .rk-inner.real .rk-dev { pointer-events: none; }
+#rack .rk-inner.real .rk-dev > .rk-ico, #rack .rk-inner.real .rk-dev > .rk-name { pointer-events: auto; }

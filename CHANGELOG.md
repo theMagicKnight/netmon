@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.17.0 – 2026-10-27
+
+- Ansicht „Kabel“: dritter Kabel-Stil **„Echt“** – RJ45-Stecker mit Knickschutz in Kabelfarbe, Kabel vorn mit Schatten,
+  jedes Kabel mit eigenem Charakter (straff, locker durchhängend, mit Schlaufe); kurze Kabel hoch zu den Endgeräten;
+  Ports mit Link ohne bekanntes Gerät bekommen ein herabhängendes Kabel. Namen bleiben lesbar, Kabel berühren zeigt die Infos.
+- Kabelführung: das senkrechte Stück unter dem Start wird jetzt mitgeprüft – Kabel laufen nicht mehr durch ein Gerät
+  dazwischen, sondern außen durch die Kabelrinne.
+
 ## 1.16.0 – 2026-10-27
 
 - Ansicht „Kabel“:

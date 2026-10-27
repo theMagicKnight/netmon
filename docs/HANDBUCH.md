@@ -1,6 +1,6 @@
 # netmon – Handbuch
 
-Stand: Version 1.16 · Oktober 2026
+Stand: Version 1.17 · Oktober 2026
 
 netmon zeigt dir dein Heimnetz auf einen Blick: welche Geräte da sind, wo sie hängen, wie schnell die Leitungen
 laufen, was der Internetanschluss leistet – und lässt dich Switches, Router und Access Points direkt abfragen und
@@ -177,7 +177,9 @@ Für Datenbank-Änderungen von Hand liegen `sql/migrate-vN.sql` bei (sonst macht
   Am Handy seitlich wischen.
   - **Kabel berühren** (Maus darüber): von wo nach wo, Port ↔ Port, Tempo und Datenrate – wie im Baum.
   - **Kabel-Stil** oben links: „Kabelrinne“ (eckig; liegt ein Gerät im Weg, läuft das Kabel links außen durch die Rinne)
-    oder „Geschwungen“ (Bögen wie Patchkabel). Die Wahl merkt sich der Browser.
+    , „Geschwungen“ (Bögen wie Patchkabel) oder **„Echt“**: Stecker stecken in den Buchsen, die Kabel liegen vorn – wie im
+    echten Schrank mal straff (zu kurz), mal locker durchhängend, mal mit Schlaufe (zu lang). Jedes Kabel behält seinen
+    Charakter. Hat ein Port Link, aber kein bekanntes Gerät, hängt das Kabel einfach nach unten weg. Die Wahl merkt sich der Browser.
   - **Anordnen** (Admin, am PC): Geräte am Namen unten greifen und frei verschieben – z. B. Haus 1 links, Haus 2 rechts.
     „Fertig“ speichert für alle, „Automatisch anordnen“ stellt wieder untereinander. Die Kabel suchen sich selbst einen
     freien Weg.
