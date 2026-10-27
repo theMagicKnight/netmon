@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.17.1 – 2026-10-27
+
+- Kabel-Stil „Echt“: Kabel kommen immer von oben in die Ziel-Buchse und liegen nicht mehr quer über den Nachbar-Buchsen
+  und Gerätesymbolen.
+
 ## 1.17.0 – 2026-10-27
 
 - Ansicht „Kabel“: dritter Kabel-Stil **„Echt“** – RJ45-Stecker mit Knickschutz in Kabelfarbe, Kabel vorn mit Schatten,

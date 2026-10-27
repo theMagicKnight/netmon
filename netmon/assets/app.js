@@ -672,7 +672,8 @@ function realCable(x1, y1, x2, y2, seedStr, gx = null) {
   // Schwerkraft: je weiter das Kabel quer läuft, desto mehr hängt es durch (straffe Kabel kaum)
   const sag = Math.min(160, Math.abs(x2 - x1) * (kind === 'straff' ? 0.04 : 0.12 + r3 * 0.1));
   const p0 = [x1, y1], p1 = [x1 + side * slack, y1 + dy * (kind === 'straff' ? 0.35 : 0.6) + sag];
-  const p2 = [x2 - side * slack * 0.7, y2 - dy * (kind === 'straff' ? 0.35 : 0.55) + sag], p3 = [x2, y2];
+  // ins Ziel immer von oben (sonst liegt das Kabel quer über den Buchsen und Symbolen daneben)
+  const p2 = [x2 - side * Math.min(slack * 0.7, 25), y2 - Math.max(90, dy * (kind === 'straff' ? 0.35 : 0.55)) + Math.min(sag, 20)], p3 = [x2, y2];
   if (kind !== 'schlaufe') return `M${f(p0)} C${f(p1)} ${f(p2)} ${f(p3)}`;
   // zu lang: eine Schlaufe in der Mitte
   const [s1, s2] = splitCubic(p0, p1, p2, p3, 0.45 + r2 * 0.15);
