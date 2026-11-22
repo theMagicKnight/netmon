@@ -90,7 +90,9 @@ $cut = fn(?string $v, int $n) => ($v = trim((string) $v)) !== '' ? mb_substr($v,
 
 if ($tool === 'librespeed') {
     // Ergebnis in Mbit/s und ms; Paketverlust misst LibreSpeed nicht
-    $out = shell_exec('timeout 150 ' . escapeshellarg($bin) . ' --json 2>&1') ?? '';
+    // Fester Server misst gleichmäßiger als die automatische Wahl (die wechselt je nach Ping von Lauf zu Lauf)
+    $server = (int) $s['librespeed_server'] > 0 ? ' --server ' . (int) $s['librespeed_server'] : '';
+    $out = shell_exec('timeout 150 ' . escapeshellarg($bin) . $server . ' --json 2>&1') ?? '';
     $result = null;
     foreach ($jsonLines($out) as $j) {
         $cand = isset($j[0]) ? $j[0] : $j;   // neuere Versionen liefern eine Liste

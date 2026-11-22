@@ -13,6 +13,7 @@ const NETMON_DEFAULTS = [
     'speedtest_enabled'   => 1,
     'speedtest_interval'  => 60,     // Minuten: 10, 15, 20, 30, 60, 120, 180, 360, 720, 1440
     'speedtest_tool'      => 'librespeed',   // librespeed (keine Sperren) oder ookla (sperrt bei häufigen Tests)
+    'librespeed_server'   => 0,      // feste Server-ID (librespeed-cli --list), 0 = automatisch nach Ping
     'animations'          => 1,
     'keep_speedtest_days' => 30,
     'keep_event_days'     => 365,

@@ -210,6 +210,9 @@ Klick auf ein Gerät öffnet den Dialog:
   Gemessen wird mit **LibreSpeed** (Standard) oder **Ookla**. Ookla sperrt die kostenlose CLI bei häufigen Tests
   („Limit reached: Too many requests“) für Stunden bis Tage – netmon misst mit Ookla deshalb höchstens stündlich.
   LibreSpeed kennt keine Sperren. Paketverlust misst nur Ookla.
+  LibreSpeed sucht sich ohne Vorgabe bei jedem Test den Server mit dem besten Ping – die Werte schwanken dann etwas.
+  Gleichmäßiger wird es mit einem festen Server unter *Einstellungen → LibreSpeed-Server*: Nummer aus
+  `librespeed-cli --list`, z. B. 50 = Frankfurt (Clouvider); 0 = automatisch.
 - **Ereignisse:** neu, offline, wieder online, IP-Wechsel, Port-Änderungen (Link da/weg, Tempo, gesperrt/freigegeben),
   DSL-Neusynchronisation.
 - **Geräte:** Tabelle aller Geräte, filterbar.
@@ -539,7 +542,7 @@ IP fällt sofort auf.
 | | Offline nach | 3 verpassten Scans |
 | | Offline-Geräte ausblenden nach (nie, 1–30 Tage) | 3 Tage |
 | | Domain-Endung (wird vom Hostnamen abgeschnitten) | `.fritz.box` |
-| Speedtest | an/aus, Programm (LibreSpeed/Ookla), Intervall (10 Min. bis täglich) | an, LibreSpeed, stündlich |
+| Speedtest | an/aus, Programm (LibreSpeed/Ookla), LibreSpeed-Server, Intervall (10 Min. bis täglich) | an, LibreSpeed, automatisch, stündlich |
 | Switch-LEDs | aus um / an um | leer (nie) |
 | Aufbewahrung | Speedtest-Rohdaten | 30 Tage (danach Tageswerte) |
 | | Ereignisse | 365 Tage |

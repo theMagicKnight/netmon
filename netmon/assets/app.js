@@ -2752,10 +2752,12 @@ function syncSpeedFields() {
   const on = $('#setForm').elements.speedtest_enabled.checked;
   $('#setForm').elements.speedtest_interval.disabled = !on;
   $('#setForm').elements.speedtest_tool.disabled = !on;
+  $('#setForm').elements.librespeed_server.disabled = !on || $('#setForm').elements.speedtest_tool.value !== 'librespeed';
 }
 
 if (IS_ADMIN) {
   $('#setForm').elements.speedtest_enabled.addEventListener('change', syncSpeedFields);
+  $('#setForm').elements.speedtest_tool.addEventListener('change', syncSpeedFields);
 
   $('#setForm').addEventListener('submit', async (e) => {
     e.preventDefault();

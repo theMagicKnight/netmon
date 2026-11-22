@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.19.1 – 2026-11-22
+
+- **Fester LibreSpeed-Server** wählbar (Einstellungen → LibreSpeed-Server, neue Einstellung `librespeed_server`):
+  0 = automatisch wie bisher, sonst die Nummer aus `librespeed-cli --list`. Die automatische Wahl wechselt je nach Ping
+  den Server, die Werte schwanken dadurch; mit festem Server (z. B. 50 = Frankfurt, Clouvider) messen die Tests gleichmäßig.
+
 ## 1.19.0 – 2026-11-22
 
 - **Speedtest mit LibreSpeed** (`librespeed-cli`) als neuer Standard. Die kostenlose Ookla-CLI sperrt bei häufigen Tests

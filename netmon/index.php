@@ -276,6 +276,10 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
                   </select></div>
                 </div>
                 <div class="set-row">
+                  <div class="txt"><div class="t">LibreSpeed-Server</div><div class="d">0 = automatisch (wechselt je nach Ping). Feste Nummer misst gleichmäßiger – Liste mit <code>librespeed-cli --list</code>, z. B. 50 = Frankfurt (Clouvider).</div></div>
+                  <div class="ctl"><input class="form-control" type="number" min="0" max="99999" name="librespeed_server"></div>
+                </div>
+                <div class="set-row">
                   <div class="txt"><div class="t">Speedtest-Intervall</div><div class="d">Jeder Test lastet die Leitung etwa 20 Sekunden voll aus.</div></div>
                   <div class="ctl"><select class="form-select" name="speedtest_interval">
                     <option value="10">alle 10 Minuten</option><option value="15">alle 15 Minuten</option>

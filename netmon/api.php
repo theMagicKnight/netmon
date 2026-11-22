@@ -1241,6 +1241,7 @@ function settingsSave(array $in): array
         'speedtest_enabled'   => fn($v) => in_array((string) $v, ['0', '1'], true),
         'speedtest_interval'  => fn($v) => in_array((int) $v, [10, 15, 20, 30, 60, 120, 180, 360, 720, 1440], true),
         'speedtest_tool'      => fn($v) => in_array((string) $v, ['librespeed', 'ookla'], true),
+        'librespeed_server'   => fn($v) => preg_match('/^\d{1,5}$/', (string) $v) === 1,
         'animations'          => fn($v) => in_array((string) $v, ['0', '1'], true),
         'keep_speedtest_days' => fn($v) => (int) $v >= 1 && (int) $v <= 365,
         'keep_event_days'     => fn($v) => (int) $v >= 7 && (int) $v <= 3650,
@@ -1251,7 +1252,7 @@ function settingsSave(array $in): array
     ];
     $labels = [
         'subnet' => 'Subnetz (z. B. 192.168.5.0/24)', 'strip_domain' => 'Domain-Endung', 'scan_interval' => 'Scan-Intervall',
-        'offline_after' => 'Offline nach (1–20 Scans)', 'hide_offline_days' => 'Offline-Geräte ausblenden', 'speedtest_interval' => 'Speedtest-Intervall', 'speedtest_tool' => 'Speedtest-Programm',
+        'offline_after' => 'Offline nach (1–20 Scans)', 'hide_offline_days' => 'Offline-Geräte ausblenden', 'speedtest_interval' => 'Speedtest-Intervall', 'speedtest_tool' => 'Speedtest-Programm', 'librespeed_server' => 'LibreSpeed-Server (Nummer, 0 = automatisch)',
         'keep_speedtest_days' => 'Speedtest-Rohdaten (1–365 Tage)', 'keep_event_days' => 'Ereignisse (7–3650 Tage)',
         'keep_scan_days' => 'Scan-Protokoll (1–365 Tage)', 'keep_history_days' => 'Verlauf (1–90 Tage)',
         'led_off' => 'LEDs aus (Uhrzeit)', 'led_on' => 'LEDs an (Uhrzeit)',
