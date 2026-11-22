@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.19.0 – 2026-11-22
+
+- **Speedtest mit LibreSpeed** (`librespeed-cli`) als neuer Standard. Die kostenlose Ookla-CLI sperrt bei häufigen Tests
+  („Limit reached: Too many requests“) – bei 10-Minuten-Takt kamen fast nur noch Fehler. LibreSpeed kennt keine Sperren.
+  Umschaltbar unter Einstellungen → **Speedtest-Programm** (neue Einstellung `speedtest_tool`). Fehlt das gewählte
+  Programm, nimmt netmon das andere.
+- **Längere Speedtest-Intervalle**: alle 2, 3, 6, 12 Stunden oder täglich. Neuer Standard: stündlich (statt 10 Minuten).
+  Mit Ookla misst netmon höchstens stündlich, auch wenn ein kürzeres Intervall eingestellt ist.
+- Ampel der einfachen Ansicht: Eine Ookla-Sperre gilt nicht mehr als „Internet gestört?“ – sie sagt nichts über die Leitung.
+- `install.sh` installiert `librespeed-cli` (neueste Version von GitHub, amd64/arm64/armv7) nach `/usr/local/bin`;
+  neue Option `--speedtest-tool librespeed|ookla`, `--speedtest-every` bis 1440 Minuten.
+- `config.example.php`: neuer Pfad `librespeed`.
+
 ## 1.18.0 – 2026-10-27
 
 - **Internet für ein Gerät sperren** über die Kindersicherung der FritzBox (TR-064 `X_AVM-DE_HostFilter`): Gerät bleibt im

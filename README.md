@@ -33,6 +33,8 @@ A **simple view** with an internet traffic light and big buttons is made for fam
   cards and cable lines, and a **cabling view**: router and switches seen from the front, cables from port to port,
   devices above their jacks
 - **Link speed in colour** on every cable: 10M red, 100M yellow, 1G green, 2.5G+ blue
+- **Speedtest** with [LibreSpeed](https://github.com/librespeed/speedtest-cli) (default, no rate limits) or the Ookla CLI
+  (rate-limited on frequent tests, so netmon runs it at most hourly); interval from 10 minutes to daily
 - **Device drivers:**
 
   | Driver | Models | Reads | Controls | Status |
@@ -112,6 +114,7 @@ file contains no login data.
 - [hass_tplink_easy_smart](https://github.com/vmakeev/hass_tplink_easy_smart) (MIT) – reference for TP-Link Easy Smart
 - [smrt](https://github.com/pklaus/smrt) / [philippechataignon-smrt](https://github.com/rgl/philippechataignon-smrt) (GPL) – protocol notes only, no code used
 - [tplinkrouterc6u](https://github.com/AlexandrErohin/TP-Link-Archer-C6U) – used as library for TP-Link access points
+- [librespeed/speedtest-cli](https://github.com/librespeed/speedtest-cli) (LGPL-3.0) – called as external program for the speedtest
 - AVM [TR-064](https://avm.de/service/schnittstellen/) documentation
 - [dsl-monitoring](https://github.com/aaronk6/dsl-monitoring) by aaronk6 – how to decrypt the Speedport `Status.json`
 - [speedport-api](https://github.com/Andre0512/speedport-api) by Andre0512 (MIT) – reference for Speedport login and switching

@@ -42,7 +42,7 @@ steuern. Es läuft auf jedem kleinen Linux-Rechner mit Apache, PHP und MariaDB, 
 | **Switches** | Port-Status, Tempo, Beschreibung, Datenrate, Fehlerzähler, Kabeltest, Einstellungs-Check, Verlauf + Live |
 | **Router** | FRITZ!Box: DSL-Sync, Störabstand, CRC, Internet-Rate · Speedport: DSL-Sync, LAN-Buchsen, WLAN-Geräte, öffentliche IP |
 | **WLAN** | Access Points, Repeater und Router melden ihre Clients mit Signal – netmon hängt die Geräte automatisch an den richtigen AP; Repeater, die Geräte hinter ihrer eigenen MAC verstecken, erkennt es selbst |
-| **Speedtest** | regelmäßige Messung (Ookla), Verlauf als Diagramm |
+| **Speedtest** | regelmäßige Messung (LibreSpeed oder Ookla), Verlauf als Diagramm |
 | **Steuern** | Switch-LEDs an/aus (auch nach Zeitplan), Ports sperren/freigeben (mit Schutz für Uplinks), WLAN und Gäste-WLAN von Speedport und TP-Link schalten, Internet neu verbinden |
 | **Einfache Ansicht** | für alle ohne Technik-Kenntnisse: Internet-Ampel, große Knöpfe, vor dem Sperren steht da, wer dann kein Netz mehr hat |
 | **Benutzer** | Admin, Familie (ansehen + sperren), Betrachter (nur ansehen); jeder startet in seiner Ansicht |
@@ -85,7 +85,8 @@ Beim ersten Aufruf legst du dort dein Admin-Konto an.
 | `--subnet 192.168.2.0/24` | Subnetz vorgeben (sonst automatisch erkannt) |
 | `--web /var/www/html/netmon` | anderer Zielordner |
 | `--no-speedtest` | Speedtest zunächst aus |
-| `--speedtest-every 20` | Speedtest alle 20 Minuten (10, 15, 20, 30, 60) |
+| `--speedtest-every 60` | Speedtest-Intervall in Minuten (10, 15, 20, 30, 60, 120, 180, 360, 720, 1440) |
+| `--speedtest-tool ookla` | Speedtest-Programm: `librespeed` (Standard) oder `ookla` |
 | `--zones sql/zones-beispiel.sql` | Beispiel-Bereiche einspielen |
 | `--with-tailscale` | Fernzugriff einrichten (siehe [Kapitel 8](#8-fernzugriff-mit-tailscale)) |
 | `--with-internet` | netmon aus dem Internet erreichbar machen: Strato-DynDNS + HTTPS (siehe [8.4](#84-ohne-tailscale-aus-dem-internet-dyndns--https)) |
@@ -206,6 +207,9 @@ Klick auf ein Gerät öffnet den Dialog:
 ### 5.3 Speedtest, Ereignisse, Geräte
 
 - **Speedtest:** Download, Upload, Ping als Verlauf; fehlgeschlagene Tests erscheinen als Lücke.
+  Gemessen wird mit **LibreSpeed** (Standard) oder **Ookla**. Ookla sperrt die kostenlose CLI bei häufigen Tests
+  („Limit reached: Too many requests“) für Stunden bis Tage – netmon misst mit Ookla deshalb höchstens stündlich.
+  LibreSpeed kennt keine Sperren. Paketverlust misst nur Ookla.
 - **Ereignisse:** neu, offline, wieder online, IP-Wechsel, Port-Änderungen (Link da/weg, Tempo, gesperrt/freigegeben),
   DSL-Neusynchronisation.
 - **Geräte:** Tabelle aller Geräte, filterbar.
@@ -535,7 +539,7 @@ IP fällt sofort auf.
 | | Offline nach | 3 verpassten Scans |
 | | Offline-Geräte ausblenden nach (nie, 1–30 Tage) | 3 Tage |
 | | Domain-Endung (wird vom Hostnamen abgeschnitten) | `.fritz.box` |
-| Speedtest | an/aus, Intervall | an, 10 Minuten |
+| Speedtest | an/aus, Programm (LibreSpeed/Ookla), Intervall (10 Min. bis täglich) | an, LibreSpeed, stündlich |
 | Switch-LEDs | aus um / an um | leer (nie) |
 | Aufbewahrung | Speedtest-Rohdaten | 30 Tage (danach Tageswerte) |
 | | Ereignisse | 365 Tage |
@@ -596,7 +600,7 @@ Protokolle: `/var/log/netmon-tick.log`, `/var/log/netmon-scan.log`, `/var/log/ne
 cron (jede Minute) → collector/tick.php
    ├─ scan.php        nmap → devices, device_events, scans
    ├─ switches.php    Treiber je Gerät → switch_ports, port_history, wifi_clients, ap_history, dev_metrics
-   ├─ speedtest.php   Ookla → speedtests
+   ├─ speedtest.php   LibreSpeed / Ookla → speedtests
    ├─ leds.php        nach Zeitplan
    └─ cleanup.php     nachts 3:30
 Browser → index.php / schnell.php → api.php (JSON, Anmeldung + CSRF)

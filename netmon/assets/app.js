@@ -2751,6 +2751,7 @@ async function loadSettings() {
 function syncSpeedFields() {
   const on = $('#setForm').elements.speedtest_enabled.checked;
   $('#setForm').elements.speedtest_interval.disabled = !on;
+  $('#setForm').elements.speedtest_tool.disabled = !on;
 }
 
 if (IS_ADMIN) {

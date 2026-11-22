@@ -36,8 +36,13 @@ if ($minute % $scanEvery === 0 || $s['scan_request']) {
 }
 
 // Speedtest, versetzt um 7 Minuten, damit er nicht mit dem Scan zusammenfällt
+// (alle Intervalle teilen 1440, deshalb passt der Takt über Mitternacht)
 if ($s['speedtest_enabled']) {
     $speedEvery = max(10, (int) $s['speedtest_interval']);
+    // Ookla sperrt die kostenlose CLI bei häufigen Tests („Limit reached“) -> höchstens stündlich
+    if ($s['speedtest_tool'] === 'ookla') {
+        $speedEvery = max(60, $speedEvery);
+    }
     if ((($minute - 7) % $speedEvery + $speedEvery) % $speedEvery === 0 || $s['speedtest_request']) {
         if ($s['speedtest_request']) {
             netmon_set($db, 'speedtest_request', 0);

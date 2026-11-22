@@ -270,10 +270,18 @@ $views[] = ['#tabSettings', 'Einstellungen', 'set'];
                   <div class="ctl form-check form-switch m-0"><input class="form-check-input" type="checkbox" name="speedtest_enabled" aria-label="Speedtest"></div>
                 </div>
                 <div class="set-row">
+                  <div class="txt"><div class="t">Speedtest-Programm</div><div class="d">LibreSpeed kennt keine Sperren. Ookla sperrt bei häufigen Tests („Limit reached“) und misst deshalb höchstens stündlich.</div></div>
+                  <div class="ctl"><select class="form-select" name="speedtest_tool">
+                    <option value="librespeed">LibreSpeed</option><option value="ookla">Ookla</option>
+                  </select></div>
+                </div>
+                <div class="set-row">
                   <div class="txt"><div class="t">Speedtest-Intervall</div><div class="d">Jeder Test lastet die Leitung etwa 20 Sekunden voll aus.</div></div>
                   <div class="ctl"><select class="form-select" name="speedtest_interval">
                     <option value="10">alle 10 Minuten</option><option value="15">alle 15 Minuten</option>
                     <option value="20">alle 20 Minuten</option><option value="30">alle 30 Minuten</option><option value="60">stündlich</option>
+                    <option value="120">alle 2 Stunden</option><option value="180">alle 3 Stunden</option>
+                    <option value="360">alle 6 Stunden</option><option value="720">alle 12 Stunden</option><option value="1440">täglich</option>
                   </select></div>
                 </div>
                 <div class="set-row">

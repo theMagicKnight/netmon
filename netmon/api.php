@@ -929,8 +929,10 @@ function internetState(): array
         }
     } catch (PDOException $e) {
     }
-    $sp = $db->query('SELECT created_at, download_mbps, upload_mbps, ping_ms, error, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age
-                        FROM speedtests ORDER BY created_at DESC, id DESC LIMIT 1')->fetch() ?: null;
+    // Ookla-Sperre („Limit reached“) sagt nichts über die Leitung -> solche Fehlversuche überspringen
+    $sp = $db->query("SELECT created_at, download_mbps, upload_mbps, ping_ms, error, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age
+                        FROM speedtests WHERE error IS NULL OR error NOT LIKE '%Limit reached%'
+                        ORDER BY created_at DESC, id DESC LIMIT 1")->fetch() ?: null;
     $fresh = $sp && (int) $sp['age'] <= max(30, 3 * (int) $s['speedtest_interval']);
     if ($dsl === 0) {
         return ['state' => 'bad', 'text' => 'Internet gestört', 'detail' => 'Der Router meldet: keine DSL-Verbindung.'];
@@ -1237,7 +1239,8 @@ function settingsSave(array $in): array
         'offline_after'       => fn($v) => (int) $v >= 1 && (int) $v <= 20,
         'hide_offline_days'   => fn($v) => in_array((int) $v, [0, 1, 2, 3, 7, 14, 30], true),
         'speedtest_enabled'   => fn($v) => in_array((string) $v, ['0', '1'], true),
-        'speedtest_interval'  => fn($v) => in_array((int) $v, [10, 15, 20, 30, 60], true),
+        'speedtest_interval'  => fn($v) => in_array((int) $v, [10, 15, 20, 30, 60, 120, 180, 360, 720, 1440], true),
+        'speedtest_tool'      => fn($v) => in_array((string) $v, ['librespeed', 'ookla'], true),
         'animations'          => fn($v) => in_array((string) $v, ['0', '1'], true),
         'keep_speedtest_days' => fn($v) => (int) $v >= 1 && (int) $v <= 365,
         'keep_event_days'     => fn($v) => (int) $v >= 7 && (int) $v <= 3650,
@@ -1248,7 +1251,7 @@ function settingsSave(array $in): array
     ];
     $labels = [
         'subnet' => 'Subnetz (z. B. 192.168.5.0/24)', 'strip_domain' => 'Domain-Endung', 'scan_interval' => 'Scan-Intervall',
-        'offline_after' => 'Offline nach (1–20 Scans)', 'hide_offline_days' => 'Offline-Geräte ausblenden', 'speedtest_interval' => 'Speedtest-Intervall',
+        'offline_after' => 'Offline nach (1–20 Scans)', 'hide_offline_days' => 'Offline-Geräte ausblenden', 'speedtest_interval' => 'Speedtest-Intervall', 'speedtest_tool' => 'Speedtest-Programm',
         'keep_speedtest_days' => 'Speedtest-Rohdaten (1–365 Tage)', 'keep_event_days' => 'Ereignisse (7–3650 Tage)',
         'keep_scan_days' => 'Scan-Protokoll (1–365 Tage)', 'keep_history_days' => 'Verlauf (1–90 Tage)',
         'led_off' => 'LEDs aus (Uhrzeit)', 'led_on' => 'LEDs an (Uhrzeit)',

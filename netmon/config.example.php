@@ -28,7 +28,8 @@ return [
 
     // Speedtest ein/aus (aus: kein Reiter, keine Messungen)
     'speedtest_enabled' => false,
-    'speedtest' => '/usr/local/bin/speedtest',
+    'speedtest'  => '/usr/local/bin/speedtest',        // Ookla-CLI
+    'librespeed' => '/usr/local/bin/librespeed-cli',   // LibreSpeed-CLI (Standard, keine Sperren)
 
     // Aufbewahrung in Tagen
     'keep_speedtest_days' => 30,    // danach nur noch Tageswerte

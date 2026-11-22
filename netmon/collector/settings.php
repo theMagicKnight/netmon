@@ -11,7 +11,8 @@ const NETMON_DEFAULTS = [
     'offline_after'       => 3,      // verpasste Scans
     'hide_offline_days'   => 3,      // Offline-Geräte nach so vielen Tagen im Baum/in Räumen ausblenden (0 = nie)
     'speedtest_enabled'   => 1,
-    'speedtest_interval'  => 10,     // Minuten: 10, 15, 20, 30, 60
+    'speedtest_interval'  => 60,     // Minuten: 10, 15, 20, 30, 60, 120, 180, 360, 720, 1440
+    'speedtest_tool'      => 'librespeed',   // librespeed (keine Sperren) oder ookla (sperrt bei häufigen Tests)
     'animations'          => 1,
     'keep_speedtest_days' => 30,
     'keep_event_days'     => 365,

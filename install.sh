@@ -4,8 +4,9 @@
 # Aufruf (im entpackten Ordner):
 #   sudo ./install.sh                                  # Subnetz wird automatisch erkannt
 #   sudo ./install.sh --zones sql/zones-beispiel.sql        # mit vorbereiteten Bereichen
-#   sudo ./install.sh --subnet 192.168.1.0/24 --web /var/www/html/netmon --speedtest-every 20
+#   sudo ./install.sh --subnet 192.168.1.0/24 --web /var/www/html/netmon --speedtest-every 60
 #   sudo ./install.sh --no-speedtest                    # Speedtest zunächst aus (in den Einstellungen umschaltbar)
+#   sudo ./install.sh --speedtest-tool ookla            # Ookla statt LibreSpeed (Standard; Ookla sperrt bei häufigen Tests)
 #   sudo ./install.sh --with-tailscale                  # zusätzlich Fernzugriff: Tailscale + Heimnetz als Subnet-Route
 #   sudo ./install.sh --with-internet                   # netmon aus dem Internet: Strato-DynDNS + HTTPS (Let's Encrypt)
 #
@@ -17,7 +18,8 @@ set -euo pipefail
 SUBNET=""
 WEB="/var/www/html/netmon"
 ZONES=""
-SPEED_EVERY=""          # Minuten zwischen zwei Speedtests (10, 15, 20, 30 oder 60), sonst Einstellung behalten
+SPEED_EVERY=""          # Minuten zwischen zwei Speedtests (10 … 1440), sonst Einstellung behalten
+SPEED_TOOL=""           # librespeed oder ookla, sonst Einstellung behalten
 SPEED_ON=1
 SPEED_OFF_GIVEN=0
 DB=netmon
@@ -31,10 +33,11 @@ while [[ $# -gt 0 ]]; do
     --web)             WEB="$2"; shift 2 ;;
     --zones)           ZONES="$2"; shift 2 ;;
     --speedtest-every) SPEED_EVERY="$2"; shift 2 ;;
+    --speedtest-tool)  SPEED_TOOL="$2"; shift 2 ;;
     --no-speedtest)    SPEED_ON=0; SPEED_OFF_GIVEN=1; shift ;;
     --with-tailscale)  TAILSCALE=1; shift ;;
     --with-internet)   INTERNET=1; shift ;;
-    -h|--help)         sed -n '2,14p' "$0"; exit 0 ;;
+    -h|--help)         sed -n '2,15p' "$0"; exit 0 ;;
     *) echo "Unbekannte Option: $1"; exit 1 ;;
   esac
 done
@@ -106,6 +109,36 @@ else
   rm -rf "$TMP"
 fi
 [[ -x /usr/local/bin/speedtest ]] && /usr/local/bin/speedtest --accept-license --accept-gdpr -L >/dev/null 2>&1 || true
+
+# ---------------------------------------------------------------
+say "LibreSpeed-Speedtest"
+# Standard-Programm für den Speedtest: keine Sperren bei häufigen Tests (anders als Ookla)
+if [[ -x /usr/local/bin/librespeed-cli ]]; then
+  echo "bereits vorhanden ($(/usr/local/bin/librespeed-cli --version 2>/dev/null | head -1))"
+else
+  case "$(uname -m)" in
+    x86_64)  LARCH=amd64 ;;
+    aarch64) LARCH=arm64 ;;
+    armv7l)  LARCH=armv7 ;;
+    *) LARCH="" ;;
+  esac
+  TMP=$(mktemp -d)
+  LURL=""
+  [[ -n "$LARCH" ]] && LURL=$(curl -fsSL https://api.github.com/repos/librespeed/speedtest-cli/releases/latest 2>/dev/null \
+    | grep -o "https://[^\"]*_linux_${LARCH}\.tar\.gz" | head -1 || true)
+  LBIN=""
+  if [[ -n "$LURL" ]] && curl -fsSL "$LURL" -o "$TMP/ls.tgz" && tar xzf "$TMP/ls.tgz" -C "$TMP"; then
+    LBIN=$(find "$TMP" -type f -name librespeed-cli | head -1)
+  fi
+  if [[ -n "$LBIN" ]]; then
+    install -m 755 "$LBIN" /usr/local/bin/librespeed-cli
+    echo "installiert ($LARCH, $(basename "$LURL"))"
+  else
+    warn "LibreSpeed konnte nicht installiert werden. Bitte von github.com/librespeed/speedtest-cli/releases herunterladen"
+    warn "und nach /usr/local/bin/librespeed-cli legen – bis dahin misst netmon mit Ookla."
+  fi
+  rm -rf "$TMP"
+fi
 SPEED_BOOL=$([[ $SPEED_ON -eq 1 ]] && echo true || echo false)
 
 # ---------------------------------------------------------------
@@ -202,8 +235,12 @@ setting() { "$SQL" "$DB" -e "INSERT INTO settings (k, v) VALUES ('$1', '$2') ON 
 [[ $SPEED_OFF_GIVEN -eq 1 ]] && setting speedtest_enabled 0
 [[ -n "$SUBNET" ]] && setting subnet "$SUBNET"
 if [[ -n "$SPEED_EVERY" ]]; then
-  [[ "$SPEED_EVERY" =~ ^(10|15|20|30|60)$ ]] || die "--speedtest-every muss 10, 15, 20, 30 oder 60 sein."
+  [[ "$SPEED_EVERY" =~ ^(10|15|20|30|60|120|180|360|720|1440)$ ]] || die "--speedtest-every muss 10, 15, 20, 30, 60, 120, 180, 360, 720 oder 1440 sein."
   setting speedtest_interval "$SPEED_EVERY"
+fi
+if [[ -n "$SPEED_TOOL" ]]; then
+  [[ "$SPEED_TOOL" =~ ^(librespeed|ookla)$ ]] || die "--speedtest-tool muss librespeed oder ookla sein."
+  setting speedtest_tool "$SPEED_TOOL"
 fi
 echo "Taktgeber jede Minute; Scan- und Speedtest-Intervalle unter Einstellungen"
 
